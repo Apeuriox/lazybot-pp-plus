@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="me.aloic.lazybotppplus.entity.mapper.ScoreStatisticsMapper">
+
+    <insert id="insertBatch" parameterType="list">
+        INSERT INTO score_statistics (
+        score_id, count_300, count_100, count_50, count_0, count_tick, count_end
+        )
+        VALUES
+        <foreach collection="list" item="stat" separator=",">
+            (
+            #{stat.scoreId}, #{stat.count300}, #{stat.count100}, #{stat.count50},
+            #{stat.count0}, #{stat.countTick}, #{stat.countEnd}
+            )
+        </foreach>
+    </insert>
+</mapper>

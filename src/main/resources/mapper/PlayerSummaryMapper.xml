@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="me.aloic.lazybotppplus.entity.mapper.PlayerSummaryMapper">
+
+    <sql id = "Base_Column_List">
+        id, last_updated
+    </sql>
+
+    <insert id="insertBatch" parameterType="list">
+        INSERT INTO player_summary (
+        id, last_updated
+        )
+        VALUES
+        <foreach collection="list" item="stat" separator=",">
+            (#{item.id}, #{item.lastUpdated})
+        </foreach>
+    </insert>
+
+    <select id="selectById" parameterType="java.lang.Long" resultType="me.aloic.lazybotppplus.entity.po.PlayerSummaryPO">
+        select <include refid="Base_Column_List"/>
+        from player_summary
+        where id =#{id}
+    </select>
+</mapper>

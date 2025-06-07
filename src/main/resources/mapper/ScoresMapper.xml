@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="me.aloic.lazybotppplus.entity.mapper.ScoresMapper">
+    <resultMap id="BaseResultMap" type="me.aloic.lazybotppplus.entity.po.ScorePO">
+        <id column="id" jdbcType="BIGINT" property="id"/>
+        <result column="player_id" jdbcType="BIGINT" property="playerId"/>
+        <result column="beatmap_id" jdbcType="BIGINT" property="beatmapId"/>
+        <result column="accuracy" jdbcType="DOUBLE" property="accuracy"/>
+        <result column="pp_speed" jdbcType="DOUBLE" property="ppSpeed"/>
+        <result column="pp_aim" jdbcType="DOUBLE" property="ppAim"/>
+        <result column="pp_jump" jdbcType="DOUBLE" property="ppJump"/>
+        <result column="pp_flow" jdbcType="DOUBLE" property="ppFlow"/>
+        <result column="pp_stamina" jdbcType="DOUBLE" property="ppStamina"/>
+        <result column="pp_precision" jdbcType="DOUBLE" property="ppSpeed"/>
+        <result column="pp_accuracy" jdbcType="DOUBLE" property="ppAccuracy"/>
+        <result column="pp" jdbcType="DOUBLE" property="pp"/>
+        <result column="combo" jdbcType="INTEGER" property="combo"/>
+        <result column="created_at" jdbcType="DATE" property="createdAt"/>
+    </resultMap>
+
+    <resultMap id="ScoreDetailMap" type="me.aloic.lazybotppplus.entity.dto.lazybot.ScorePerformanceDTO">
+        <id column="score_id" property="scoreId"/>
+        <result column="accuracy" property="accuracy"/>
+        <result column="pp" property="pp" />
+        <result column="combo" property="combo"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="pp_speed" jdbcType="DOUBLE" property="ppSpeed"/>
+        <result column="pp_aim" jdbcType="DOUBLE" property="ppAim"/>
+        <result column="pp_jump" jdbcType="DOUBLE" property="ppJump"/>
+        <result column="pp_flow" jdbcType="DOUBLE" property="ppFlow"/>
+        <result column="pp_stamina" jdbcType="DOUBLE" property="ppStamina"/>
+        <result column="pp_precision" jdbcType="DOUBLE" property="ppSpeed"/>
+        <result column="pp_accuracy" jdbcType="DOUBLE" property="ppAccuracy"/>
+
+        <association property="player" javaType="me.aloic.lazybotppplus.entity.po.PlayerSummaryPO">
+            <id column="player_id" property="id" />
+            <result column="last_updated" property="lastUpdated" />
+        </association>
+
+        <association property="beatmap" javaType="me.aloic.lazybotppplus.entity.po.BeatmapPO">
+            <id column="beatmap_id" property="id" />
+            <result column="title" property="title" />
+            <result column="artist" property="artist" />
+            <result column="version" property="version" />
+            <result column="bpm" property="bpm" />
+        </association>
+
+        <association property="statistics" javaType="me.aloic.lazybotppplus.entity.po.ScoreStatisticsPO">
+            <result column="count_300" property="count300" />
+            <result column="count_100" property="count100" />
+            <result column="count_50" property="count50" />
+            <result column="count_0" property="count0" />
+            <result column="count_tick" property="countTick" />
+            <result column="count_end" property="countEnd" />
+        </association>
+    </resultMap>
+
+    <sql id = "Base_Column_List">
+        id, player_id, beatmap_id, accuracy, pp_speed, pp_aim, pp_jump, pp_flow, pp_stamina, pp_precision, pp_accuracy, pp, combo, created_at
+    </sql>
+
+    <select id="selectScoreDetailById" resultMap="ScoreDetailMap">
+        SELECT
+            s.id AS score_id, s.accuracy, s.pp, s.combo, s.created_at,s.pp_speed, s.pp_aim, s.pp_jump, s.pp_flow, s.pp_stamina, s.pp_precision, s.pp_accuracy,
+            p.id AS player_id, p.last_updated,
+            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm,
+            st.count_300, st.count_100, st.count_50, st.count_0, st.count_tick, st.count_end
+        FROM scores s
+                 LEFT JOIN player_summary p ON s.player_id = p.id
+                 LEFT JOIN beatmap b ON s.beatmap_id = b.id
+                 LEFT JOIN score_statistics st ON s.id = st.score_id
+        WHERE s.id = #{id}
+    </select>
+
+
+
+    <select id="selectById" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from scores
+        where id =#{id,jdbcType=BIGINT}
+    </select>
+
+    <select id="selectTopScoresByPlayerIdAndDimension" resultMap="BaseResultMap">
+        SELECT *
+        FROM (
+        SELECT
+        s.*,
+        ROW_NUMBER() OVER (
+        ORDER BY
+        <choose>
+            <when test="dimension == 'pp_speed'">s.pp_speed DESC</when>
+            <when test="dimension == 'pp_aim'">s.pp_aim DESC</when>
+            <when test="dimension == 'pp_jump'">s.pp_jump DESC</when>
+            <when test="dimension == 'pp_flow'">s.pp_flow DESC</when>
+            <when test="dimension == 'pp_stamina'">s.pp_stamina DESC</when>
+            <when test="dimension == 'pp_precision'">s.pp_precision DESC</when>
+            <when test="dimension == 'pp_accuracy'">s.pp_accuracy DESC</when>
+            <otherwise>s.pp DESC</otherwise>
+        </choose>
+        ) AS rn
+        FROM scores s
+        WHERE s.player_id = #{playerId}
+        ) ranked
+        WHERE rn &lt;= 100
+    </select>
+
+    <insert id="insertBatch" parameterType="list">
+        INSERT INTO scores (id, player_id, beatmap_id, accuracy, pp_speed, pp_aim, pp_jump, pp_flow, pp_stamina, pp_precision, pp_accuracy, pp, combo, created_at)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.id}, #{item.playerId}, #{item.beatmapId}, #{item.accuracy},#{item.ppSpeed}, #{item.ppAim}, #{item.ppJump}, #{item.ppFlow},#{item.ppStamina},#{item.ppPrecision},#{item.ppAccuracy},#{item.pp},#{item.combo}, #{item.createdAt})
+        </foreach>
+    </insert>
+
+</mapper>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="me.aloic.lazybotppplus.entity.mapper.BeatmapMapper">
+    <insert id="insertBatchIgnoreDuplicate" parameterType="list">
+        INSERT IGNORE INTO beatmap (
+        id, title, artist, version, bpm, checksum
+        )
+        VALUES
+        <foreach collection="list" item="map" separator=",">
+            (
+            #{map.id}, #{map.title}, #{map.artist},
+            #{map.version}, #{map.bpm}, #{map.checksum}
+            )
+        </foreach>
+    </insert>
+
+    <insert id="insertBatchUpsert" parameterType="list">
+        INSERT INTO beatmap (
+        id, title, artist, version, bpm, checksum
+        )
+        VALUES
+        <foreach collection="list" item="map" separator=",">
+            (
+            #{map.id}, #{map.title}, #{map.artist},
+            #{map.version}, #{map.bpm}, #{map.checksum}
+            )
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        title = VALUES(title),
+        artist = VALUES(artist),
+        version = VALUES(version),
+        bpm = VALUES(bpm),
+        checksum = VALUES(checksum)
+    </insert>
+</mapper>

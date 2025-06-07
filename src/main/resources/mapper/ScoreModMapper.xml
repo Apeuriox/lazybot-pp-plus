@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="me.aloic.lazybotppplus.entity.mapper.ScoreModMapper">
+    <select id="selectModsByScoreId" resultType="java.lang.String">
+        SELECT `mod` FROM score_mods WHERE score_id = #{scoreId}
+    </select>
+
+    <insert id="insertBatch" parameterType="list">
+        INSERT INTO score_mods (score_id, `mod`)
+        VALUES
+        <foreach collection="list" item="mod" separator=",">
+            (#{mod.scoreId}, #{mod.mod})
+        </foreach>
+    </insert>
+</mapper>
