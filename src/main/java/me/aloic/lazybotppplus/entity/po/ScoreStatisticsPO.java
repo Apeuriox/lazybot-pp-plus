@@ -1,6 +1,7 @@
 package me.aloic.lazybotppplus.entity.po;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,6 +15,7 @@ import java.util.Optional;
 @NoArgsConstructor
 public class ScoreStatisticsPO {
 
+    @JsonIgnore
     private Long scoreId;
     private Integer count300;
     private Integer count100;
@@ -24,10 +26,10 @@ public class ScoreStatisticsPO {
 
     public ScoreStatisticsPO(ScoreStatisticsLazer statisticsLazer, Long scoreId) {
         this.scoreId=scoreId;
-        this.count300=statisticsLazer.getGreat();
-        this.count100=statisticsLazer.getOk();
-        this.count50=statisticsLazer.getMeh();
-        this.count0=statisticsLazer.getMiss();
+        this.count300=Optional.ofNullable(statisticsLazer.getGreat()).orElse(0);
+        this.count100=Optional.ofNullable(statisticsLazer.getOk()).orElse(0);
+        this.count50=Optional.ofNullable(statisticsLazer.getMeh()).orElse(0);
+        this.count0=Optional.ofNullable(statisticsLazer.getMiss()).orElse(0);
         this.countTick= Optional.ofNullable(statisticsLazer.getLarge_tick_hit()).orElse(0);
         this.countEnd= Optional.ofNullable(statisticsLazer.getSlider_tail_hit()).orElse(0);
     }

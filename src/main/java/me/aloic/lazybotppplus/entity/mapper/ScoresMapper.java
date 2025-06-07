@@ -16,4 +16,6 @@ public interface ScoresMapper extends BaseMapper<ScorePO> {
                                                       @Param("dimension") String dimension);
 
     void insertBatch(List<ScorePO> scores);
+    void deleteById(Long id);
+    ScorePO selectByPlayerIdAndBeatmapId(Long playerId, Integer beatmapId);
 }

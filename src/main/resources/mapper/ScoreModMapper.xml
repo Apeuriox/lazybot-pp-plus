@@ -13,4 +13,9 @@
             (#{mod.scoreId}, #{mod.mod})
         </foreach>
     </insert>
+
+    <delete id="deleteByScoreId">
+        DELETE FROM score_mods WHERE score_id = #{scoreId}
+    </delete>
+
 </mapper>

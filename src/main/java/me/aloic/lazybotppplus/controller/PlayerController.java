@@ -26,4 +26,11 @@ public class PlayerController
         logger.info("正在处理/player/info请求");
         return ResultUtil.success(playerService.getPlayerStats(id));
     }
+    @GetMapping("/add")
+    public WebResult getPlayerInfo(@RequestParam(value = "id", required = true) Long id,
+                                   @RequestParam(value = "beatmapId", required = true) Integer beatmapId)
+    {
+        logger.info("正在处理/player/add请求");
+        return ResultUtil.success(playerService.addScore(id,beatmapId));
+    }
 }

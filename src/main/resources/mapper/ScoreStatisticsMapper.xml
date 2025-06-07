@@ -15,4 +15,14 @@
             )
         </foreach>
     </insert>
+    <insert id="insertSingle" parameterType="me.aloic.lazybotppplus.entity.po.ScoreStatisticsPO">
+        INSERT INTO score_statistics (score_id, count_300, count_100, count_50, count_0, count_tick, count_end)
+        VALUES
+        (#{scoreId}, #{count300}, #{count100}, #{count50},
+            #{count0}, #{countTick}, #{countEnd})
+    </insert>
+
+    <delete id="deleteByScoreId">
+        DELETE FROM score_statistics WHERE score_id = #{scoreId}
+    </delete>
 </mapper>

@@ -1,10 +1,10 @@
 package me.aloic.lazybotppplus.service.impl;
 
-import cn.hutool.json.JSONUtil;
-import com.alibaba.fastjson2.JSON;
 import jakarta.annotation.Resource;
 import me.aloic.lazybotppplus.entity.dto.lazybot.ScorePerformanceDTO;
+import me.aloic.lazybotppplus.entity.dto.osu.beatmap.BeatmapDTO;
 import me.aloic.lazybotppplus.entity.dto.osu.beatmap.ScoreLazerDTO;
+import me.aloic.lazybotppplus.entity.dto.osu.player.BeatmapUserScores;
 import me.aloic.lazybotppplus.entity.mapper.*;
 import me.aloic.lazybotppplus.entity.po.*;
 import me.aloic.lazybotppplus.entity.vo.PPPlusPerformance;
@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Array;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -66,7 +67,9 @@ public class PlayerServiceImpl implements PlayerService
         }
         for (PerformanceDimension dim : PerformanceDimension.values()) {
             List<Double> sortedValues = getSortedScores(dimensionScoreMap.get(dim), dim.getGetter());
+            System.out.println(dim.getDbColumn() + Arrays.toString(sortedValues.toArray()));
             double result = calcWeightedTotalPerformance(sortedValues);
+            System.out.println("result: " + result);
             dim.getSetter().accept(performance, result);
         }
         logger.info("计算完成");
@@ -137,11 +140,75 @@ public class PlayerServiceImpl implements PlayerService
         return null;
     }
 
-    public PlayerStats addScore(Long id, Integer beatmapId)
+    @Transactional
+    @Override
+    public ScorePerformanceDTO addScore(Long id, Integer beatmapId)
     {
+        PlayerSummaryPO player = playerSummaryMapper.selectById(id);
+        if (player == null) {
+           throw new LazybotRuntimeException("找不到该玩家");
+        }
 
-        return null;
+        List<ScoreLazerDTO> scores = new ApiRequestStarter(
+                URLBuildUtil.buildURLOfBeatmapScoreAll(String.valueOf(beatmapId), String.valueOf(id), OsuMode.Osu),
+                TokenMonitor.getToken())
+                .executeRequest(HTTPTypeEnum.GET, BeatmapUserScores.class).getScores();
+
+        if (scores == null || scores.isEmpty()) {
+            throw new LazybotRuntimeException("找不到该玩家在" + beatmapId + "上的成绩");
+        }
+        BeatmapDTO beatmapDTO = new ApiRequestStarter(URLBuildUtil.buildURLOfBeatmap(String.valueOf(beatmapId),OsuMode.Osu), TokenMonitor.getToken())
+                .executeRequest(HTTPTypeEnum.GET, BeatmapDTO.class);
+
+        ScoreLazerDTO bestScore = null;
+        PPPlusPerformance bestPerformance = null;
+
+        for (ScoreLazerDTO lazerScore : scores) {
+            try {
+                PPPlusPerformance performance = PlusPPUtil.calcPPPlusStats(AssertDownloadUtil.beatmapPath(lazerScore.getBeatmap_id(), false).toString(), lazerScore);
+                if (bestScore == null || performance.getPp() > bestPerformance.getPp()) {
+                    bestScore = lazerScore;
+                    bestPerformance = performance;
+                }
+            } catch (Exception e) {
+                logger.warn("计算失败，跳过成绩: {}", lazerScore.getId(), e);
+            }
+        }
+        if (bestScore == null) {
+            throw new LazybotRuntimeException("无法获得有效的最佳成绩");
+        }
+        return addScore(bestScore,bestPerformance,beatmapDTO,id,beatmapId);
     }
+
+    private ScorePerformanceDTO addScore(ScoreLazerDTO bestScore, PPPlusPerformance bestPerformance,BeatmapDTO beatmapDTO,Long id, Integer beatmapId)
+    {
+        ScorePO bestScorePO = new ScorePO(bestScore, bestPerformance);
+        ScoreStatisticsPO statsPO = new ScoreStatisticsPO(bestScore.getStatistics(), bestScore.getId());
+        ScoreLazerDTO finalBestScore = bestScore;
+        List<ScoreModPO> modPOList = bestScore.getMods() == null ? List.of() :
+                bestScore.getMods().stream().map(mod -> new ScoreModPO(finalBestScore.getId(), mod.getAcronym())).toList();
+        ScorePO oldScore = scoresMapper.selectByPlayerIdAndBeatmapId(id, beatmapId);
+        BeatmapPO beatmapPO=new BeatmapPO(beatmapDTO,beatmapDTO.getBeatmapset());
+        if (oldScore == null || oldScore.getPp() < bestPerformance.getPp()) {
+            if (oldScore != null) {
+                scoreModMapper.deleteByScoreId(oldScore.getId());
+                scoreStatisticsMapper.deleteByScoreId(oldScore.getId());
+                scoresMapper.deleteById(oldScore.getId());
+            }
+            beatmapMapper.insertOrUpdate(beatmapPO);
+            scoresMapper.insert(bestScorePO);
+            scoreStatisticsMapper.insertSingle(statsPO);
+            if (!modPOList.isEmpty()) {
+                scoreModMapper.insertBatch(modPOList);
+            }
+            logger.info("替换 playerId={} beatmapId={} 的 bestScore: {}", id, beatmapId, bestScore.getId());
+            return scoresMapper.selectScoreDetailById(bestScore.getId());
+        } else {
+            logger.info("已有更高分数，跳过更新");
+            return scoresMapper.selectScoreDetailById(oldScore.getId());
+        }
+    }
+
 
     @Override
     public ScorePerformanceDTO getScorePerformance(Long id)
@@ -159,12 +226,23 @@ public class PlayerServiceImpl implements PlayerService
     {
         return null;
     }
+
+
+
+
+
+
+
+
+
+
     private static double calcWeightedTotalPerformance(List<Double> scores)
     {
         return IntStream.range(0, scores.size())
             .mapToDouble(i -> Math.pow(0.95, i) * scores.get(i))
             .sum();
     }
+
     private <T extends Number> List<Double> getSortedScores(List<ScorePO> scores, Function<ScorePO, T> getter) {
         return scores.stream()
                 .map(getter)
