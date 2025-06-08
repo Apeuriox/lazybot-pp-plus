@@ -134,4 +134,22 @@
         </foreach>
     </select>
 
+    <select id="selectBestScoresInSingleDimension" resultMap="ScoreDetailMap">
+        SELECT
+            s.id AS score_id, s.accuracy, s.pp, s.combo, s.created_at,s.pp_speed, s.pp_aim, s.pp_jump, s.pp_flow, s.pp_stamina, s.pp_precision, s.pp_accuracy,
+            p.id AS player_id, p.last_updated,
+            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum,
+            st.count_300, st.count_100, st.count_50, st.count_0, st.count_tick, st.count_end
+        FROM scores s
+                 LEFT JOIN player_summary p ON s.player_id = p.id
+                 LEFT JOIN beatmap b ON s.beatmap_id = b.id
+                 LEFT JOIN score_statistics st ON s.id = st.score_id
+        WHERE s.player_id = #{playerId}
+        ORDER BY
+            ${dimension} DESC
+        LIMIT #{limit}
+        OFFSET #{offset}
+    </select>
+
+
 </mapper>

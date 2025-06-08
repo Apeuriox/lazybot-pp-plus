@@ -17,5 +17,13 @@
     <delete id="deleteByScoreId">
         DELETE FROM score_mods WHERE score_id = #{scoreId}
     </delete>
+    <select id="selectByScoreIds" resultType="me.aloic.lazybotppplus.entity.po.ScoreModPO">
+        SELECT score_id, `mod`
+        FROM score_mods
+        WHERE score_id IN
+        <foreach collection="scoreIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
 
 </mapper>

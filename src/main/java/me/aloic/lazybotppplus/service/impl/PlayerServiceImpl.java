@@ -147,7 +147,6 @@ public class PlayerServiceImpl implements PlayerService
             try{
                 Long beatmapId = Long.valueOf(dto.getBeatmap_id());
                 Long scoreId = dto.getId();
-
                 PPPlusPerformance performance = PlusPPUtil.calcPPPlusStats(AssertDownloadUtil.beatmapPath(Math.toIntExact(beatmapId), false).toString(), dto);
                 ScorePO newScore = new ScorePO(dto, performance);
                 ScorePO existing = existingScores.get(beatmapId);
@@ -166,6 +165,9 @@ public class PlayerServiceImpl implements PlayerService
                     }
                     insertStats.add(new ScoreStatisticsPO(dto.getStatistics(), scoreId));
                     logger.info("已更新成绩id:{}在{}的成绩到{}",scoreId,beatmapId,id);
+                }
+                else {
+                    logger.info("ScoreId:{}，地图{}已有更好成绩，跳过执行",scoreId,beatmapId);
                 }
             }
             catch (Exception e) {
@@ -248,28 +250,41 @@ public class PlayerServiceImpl implements PlayerService
 
 
     @Override
-    public ScorePerformanceDTO getScorePerformance(Long id)
+    public ScorePerformanceDTO getScorePerformance(Long scoreId)
     {
-        ScorePerformanceDTO dto = scoresMapper.selectScoreDetailById(id);
+        ScorePerformanceDTO dto = scoresMapper.selectScoreDetailById(scoreId);
         if (dto != null) {
-            List<String> mods = scoreModMapper.selectModsByScoreId(id);
+            List<String> mods = scoreModMapper.selectModsByScoreId(scoreId);
             dto.setMods(mods);
         }
         return dto;
     }
 
-
-    public PlayerStats typeScoreLeaderboard()
+    @Override
+    public List<ScorePerformanceDTO> bestScoresInSingleDimension(Long id, PerformanceDimension dimension, Integer limit, Integer offset)
     {
-        return null;
+        PlayerSummaryPO player = playerSummaryMapper.selectById(id);
+        if (player == null) {
+            throw new LazybotRuntimeException("找不到该玩家");
+        }
+        logger.info("正在查询玩家{}在{}上的成绩", id, dimension.getDbColumn());
+        List<ScorePerformanceDTO> scores = scoresMapper.selectBestScoresInSingleDimension(id, dimension.getDbColumn(), limit, offset);
+        if (scores == null || scores.isEmpty()) throw new LazybotRuntimeException("找不到玩家" + id + "在" + dimension.getDbColumn() + "上的成绩");
+
+        List<Long> scoreIds = scores.stream().map(ScorePerformanceDTO::getScoreId).toList();
+
+        Map<Long, List<ScoreModPO>> modsMap = scoreModMapper.selectByScoreIds(scoreIds)
+                .stream().collect(Collectors.groupingBy(ScoreModPO::getScoreId));
+
+        for (ScorePerformanceDTO detail : scores) {
+            List<ScoreModPO> scoreMods = (modsMap.getOrDefault(detail.getScoreId(), Collections.emptyList()));
+            if (scoreMods != null && !scoreMods.isEmpty()) {
+                detail.setMods(scoreMods.stream().map(ScoreModPO::getMod).toList());
+            }
+        }
+        logger.info("查询成功");
+        return scores;
     }
-
-
-
-
-
-
-
 
 
 
