@@ -21,11 +21,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.lang.reflect.Array;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Service
@@ -51,29 +51,11 @@ public class PlayerServiceImpl implements PlayerService
     @Transactional
     @Override
     public PlayerStats getPlayerStats(Long id) {
-        PlayerSummaryPO player = playerSummaryMapper.selectById(id);
-        PPPlusPerformance performance = new PPPlusPerformance();
+        PlayerStats playerResult=checkInitializationStatus(id);
+        if (playerResult != null) return playerResult;
 
-        if (player == null) {
-            logger.info("请求玩家{}无数据，正在初始化...", id);
-            playerSummaryMapper.insert(new PlayerSummaryPO(id, LocalDateTime.now()));
-            List<ScorePO> scores = initializePlayerStats(id);
-            return new PlayerStats(id, calculatePerformanceFromScores(scores));
-        }
         logger.info("请求玩家{}存在，正在计算...", id);
-        Map<PerformanceDimension, List<ScorePO>> dimensionScoreMap = new EnumMap<>(PerformanceDimension.class);
-        for (PerformanceDimension dim : PerformanceDimension.values()) {
-            dimensionScoreMap.put(dim, scoresMapper.selectTopScoresByPlayerIdAndDimension(id, dim.getDbColumn()));
-        }
-        for (PerformanceDimension dim : PerformanceDimension.values()) {
-            List<Double> sortedValues = getSortedScores(dimensionScoreMap.get(dim), dim.getGetter());
-            System.out.println(dim.getDbColumn() + Arrays.toString(sortedValues.toArray()));
-            double result = calcWeightedTotalPerformance(sortedValues);
-            System.out.println("result: " + result);
-            dim.getSetter().accept(performance, result);
-        }
-        logger.info("计算完成");
-        return new PlayerStats(id, performance);
+        return calcPlayerStats(id);
     }
 
     @Transactional
@@ -136,8 +118,66 @@ public class PlayerServiceImpl implements PlayerService
     }
 
 
+    @Override
+    @Transactional
     public PlayerStats updatePlayerStats(Long id) {
-        return null;
+        PlayerStats playerResult=checkInitializationStatus(id);
+        if (playerResult != null) return playerResult;
+
+        List<ScoreLazerDTO> recentScores =  new ApiRequestStarter(URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50,OsuMode.Osu),TokenMonitor.getToken())
+                .executeRequestForList(HTTPTypeEnum.GET, ScoreLazerDTO.class);
+        if(recentScores==null|| recentScores.isEmpty()) {
+            throw new LazybotRuntimeException("我只能说bro你没打图");
+        }
+        Set<Long> beatmapIds = recentScores.stream()
+                .mapToLong(ScoreLazerDTO::getBeatmap_id)
+                .boxed()
+                .collect(Collectors.toSet());
+
+        Map<Long, ScorePO> existingScores = scoresMapper
+                .selectBestScoresByPlayerAndBeatmapIds(id, beatmapIds)
+                .stream()
+                .collect(Collectors.toMap(ScorePO::getBeatmapId, Function.identity()));
+
+        List<ScorePO> insertList = new ArrayList<>();
+        List<ScoreModPO> insertMods = new ArrayList<>();
+        List<ScoreStatisticsPO> insertStats = new ArrayList<>();
+        List<BeatmapPO> insertBeatmaps = new ArrayList<>();
+        for (ScoreLazerDTO dto : recentScores) {
+            try{
+                Long beatmapId = Long.valueOf(dto.getBeatmap_id());
+                Long scoreId = dto.getId();
+
+                PPPlusPerformance performance = PlusPPUtil.calcPPPlusStats(AssertDownloadUtil.beatmapPath(Math.toIntExact(beatmapId), false).toString(), dto);
+                ScorePO newScore = new ScorePO(dto, performance);
+                ScorePO existing = existingScores.get(beatmapId);
+                if (existing == null || newScore.getPp() > existing.getPp()) {
+                    if (existing != null) {
+                        scoresMapper.deleteById(existing.getId());
+                        scoreModMapper.deleteByScoreId(existing.getId());
+                        scoreStatisticsMapper.deleteByScoreId(existing.getId());
+                    }
+                    insertBeatmaps.add(new BeatmapPO(dto.getBeatmap(),dto.getBeatmapset()));
+                    insertList.add(newScore);
+                    if (dto.getMods() != null) {
+                        insertMods.addAll(dto.getMods().stream()
+                                .map(mod -> new ScoreModPO(scoreId, mod.getAcronym()))
+                                .toList());
+                    }
+                    insertStats.add(new ScoreStatisticsPO(dto.getStatistics(), scoreId));
+                    logger.info("已更新成绩id:{}在{}的成绩到{}",scoreId,beatmapId,id);
+                }
+            }
+            catch (Exception e) {
+                logger.error("计算PP+失败, 跳过该记录", e);
+            }
+        }
+        if (!insertStats.isEmpty()) beatmapMapper.insertBatchIgnoreDuplicate(insertBeatmaps);
+        if (!insertList.isEmpty()) scoresMapper.insertBatch(insertList);
+        if (!insertMods.isEmpty()) scoreModMapper.insertBatch(insertMods);
+        if (!insertStats.isEmpty()) scoreStatisticsMapper.insertBatch(insertStats);
+
+        return calcPlayerStats(id);
     }
 
     @Transactional
@@ -154,9 +194,7 @@ public class PlayerServiceImpl implements PlayerService
                 TokenMonitor.getToken())
                 .executeRequest(HTTPTypeEnum.GET, BeatmapUserScores.class).getScores();
 
-        if (scores == null || scores.isEmpty()) {
-            throw new LazybotRuntimeException("找不到该玩家在" + beatmapId + "上的成绩");
-        }
+        if (scores == null || scores.isEmpty()) throw new LazybotRuntimeException("找不到该玩家在" + beatmapId + "上的成绩");
         BeatmapDTO beatmapDTO = new ApiRequestStarter(URLBuildUtil.buildURLOfBeatmap(String.valueOf(beatmapId),OsuMode.Osu), TokenMonitor.getToken())
                 .executeRequest(HTTPTypeEnum.GET, BeatmapDTO.class);
 
@@ -184,9 +222,8 @@ public class PlayerServiceImpl implements PlayerService
     {
         ScorePO bestScorePO = new ScorePO(bestScore, bestPerformance);
         ScoreStatisticsPO statsPO = new ScoreStatisticsPO(bestScore.getStatistics(), bestScore.getId());
-        ScoreLazerDTO finalBestScore = bestScore;
         List<ScoreModPO> modPOList = bestScore.getMods() == null ? List.of() :
-                bestScore.getMods().stream().map(mod -> new ScoreModPO(finalBestScore.getId(), mod.getAcronym())).toList();
+                bestScore.getMods().stream().map(mod -> new ScoreModPO(bestScore.getId(), mod.getAcronym())).toList();
         ScorePO oldScore = scoresMapper.selectByPlayerIdAndBeatmapId(id, beatmapId);
         BeatmapPO beatmapPO=new BeatmapPO(beatmapDTO,beatmapDTO.getBeatmapset());
         if (oldScore == null || oldScore.getPp() < bestPerformance.getPp()) {
@@ -250,6 +287,33 @@ public class PlayerServiceImpl implements PlayerService
                 .map(Number::doubleValue)
                 .sorted(Comparator.reverseOrder())
                 .toList();
+    }
+    @Transactional
+    protected PlayerStats checkInitializationStatus(Long id)
+    {
+        PlayerSummaryPO player = playerSummaryMapper.selectById(id);
+        if (player == null) {
+            logger.info("请求玩家{}无数据，正在初始化...", id);
+            playerSummaryMapper.insert(new PlayerSummaryPO(id, LocalDateTime.now()));
+            List<ScorePO> scores = initializePlayerStats(id);
+            return new PlayerStats(id, calculatePerformanceFromScores(scores));
+        }
+        return null;
+    }
+    @Transactional
+    protected PlayerStats calcPlayerStats(Long id) {
+        PPPlusPerformance performance = new PPPlusPerformance();
+        Map<PerformanceDimension, List<ScorePO>> dimensionScoreMap = new EnumMap<>(PerformanceDimension.class);
+        for (PerformanceDimension dim : PerformanceDimension.values()) {
+            dimensionScoreMap.put(dim, scoresMapper.selectTopScoresByPlayerIdAndDimension(id, dim.getDbColumn()));
+        }
+        for (PerformanceDimension dim : PerformanceDimension.values()) {
+            List<Double> sortedValues = getSortedScores(dimensionScoreMap.get(dim), dim.getGetter());
+            double result = calcWeightedTotalPerformance(sortedValues);
+            dim.getSetter().accept(performance, result);
+        }
+        logger.info("计算完成");
+        return new PlayerStats(id, performance);
     }
 
     private PPPlusPerformance calculatePerformanceFromScores(List<ScorePO> scores) {

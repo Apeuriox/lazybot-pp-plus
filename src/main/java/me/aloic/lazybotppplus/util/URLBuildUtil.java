@@ -100,11 +100,11 @@ public class URLBuildUtil
                 .addQuery("mode", mode.getDescribe());
         return builder.build();
     }
-    public static String buildURLOfRecentCommand(Integer playerId, Integer type, Integer limit ,OsuMode mode)
+    public static String buildURLOfRecentCommand(String playerId, Integer type, Integer limit ,OsuMode mode)
     {
         UrlBuilder builder = UrlBuilder.ofHttp(BASE_URL, CharsetUtil.CHARSET_UTF_8)
                 .addPath("users")
-                .addPath(String.valueOf(playerId))
+                .addPath(playerId)
                 .addPath("scores")
                 .addPath("recent")
                 .addQuery("mode", mode.getDescribe())

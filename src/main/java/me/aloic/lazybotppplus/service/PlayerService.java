@@ -9,6 +9,9 @@ public interface PlayerService
     @Transactional
     PlayerStats getPlayerStats(Long id);
 
+    @Transactional
+    PlayerStats updatePlayerStats(Long id);
+
     ScorePerformanceDTO addScore(Long id, Integer beatmapId);
 
     ScorePerformanceDTO getScorePerformance(Long id);

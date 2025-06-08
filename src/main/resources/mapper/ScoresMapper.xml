@@ -103,7 +103,7 @@
         FROM scores s
         WHERE s.player_id = #{playerId}
         ) ranked
-        WHERE rn &lt;= 100
+        WHERE rn &lt;= 200
     </select>
 
     <insert id="insertBatch" parameterType="list">
@@ -123,5 +123,15 @@
     <delete id="deleteById">
         DELETE FROM scores WHERE id = #{id}
     </delete>
+
+    <select id="selectBestScoresByPlayerAndBeatmapIds" resultMap="BaseResultMap">
+        SELECT *
+        FROM scores
+        WHERE player_id = #{playerId}
+        AND beatmap_id IN
+        <foreach collection="beatmapIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
 
 </mapper>

@@ -24,7 +24,7 @@ public class TokenMonitor
 
     private static final Logger logger = LoggerFactory.getLogger(TokenMonitor.class);
     private static final String TOKEN_URL = "https://osu.ppy.sh/oauth/token";
-    public static String token;
+    private static String token;
 
     @Scheduled(cron = "0 0 0/12 * * ? ")
     public void refreshClientToken()
