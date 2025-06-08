@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: lazybot-pp-plus
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url:
+    username: root
+    password:
+    hikari:
+      max-lifetime: 120000
+
+server:
+  port: 9001
+
+lazybot:
+  client_id:
+  response_type: code
+  scopes: friends.read identify public
+  client_secret:
+  grant_type: authorization_code
+
+security:
+  ip-whitelist:
+    - 127.0.0.1
+    -
