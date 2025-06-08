@@ -12,7 +12,9 @@ import me.aloic.lazybotppplus.entity.vo.PlayerStats;
 import me.aloic.lazybotppplus.enums.HTTPTypeEnum;
 import me.aloic.lazybotppplus.enums.OsuMode;
 import me.aloic.lazybotppplus.enums.PerformanceDimension;
+import me.aloic.lazybotppplus.exception.InvalidScoreException;
 import me.aloic.lazybotppplus.exception.LazybotRuntimeException;
+import me.aloic.lazybotppplus.exception.PlayerNotFoundException;
 import me.aloic.lazybotppplus.monitor.TokenMonitor;
 import me.aloic.lazybotppplus.service.PlayerService;
 import me.aloic.lazybotppplus.util.*;
@@ -65,7 +67,7 @@ public class PlayerServiceImpl implements PlayerService
                 TokenMonitor.getToken()
         ).executeRequestForList(HTTPTypeEnum.GET, ScoreLazerDTO.class);
         if (scoreLazerDTOS == null || scoreLazerDTOS.isEmpty()) {
-            throw new LazybotRuntimeException("找不到此玩家的成绩");
+            throw new InvalidScoreException("找不到此玩家的成绩");
         }
         logger.info("玩家初始请求成绩列表大小: {}", scoreLazerDTOS.size());
         if (scoreLazerDTOS.size() < 110) {
@@ -127,7 +129,7 @@ public class PlayerServiceImpl implements PlayerService
         List<ScoreLazerDTO> recentScores =  new ApiRequestStarter(URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50,OsuMode.Osu),TokenMonitor.getToken())
                 .executeRequestForList(HTTPTypeEnum.GET, ScoreLazerDTO.class);
         if(recentScores==null|| recentScores.isEmpty()) {
-            throw new LazybotRuntimeException("我只能说bro你没打图");
+            throw new InvalidScoreException("我只能说bro你没打图");
         }
         Set<Long> beatmapIds = recentScores.stream()
                 .mapToLong(ScoreLazerDTO::getBeatmap_id)
@@ -188,7 +190,7 @@ public class PlayerServiceImpl implements PlayerService
     {
         PlayerSummaryPO player = playerSummaryMapper.selectById(id);
         if (player == null) {
-           throw new LazybotRuntimeException("找不到该玩家");
+           throw new PlayerNotFoundException("找不到该玩家");
         }
 
         List<ScoreLazerDTO> scores = new ApiRequestStarter(
@@ -196,7 +198,7 @@ public class PlayerServiceImpl implements PlayerService
                 TokenMonitor.getToken())
                 .executeRequest(HTTPTypeEnum.GET, BeatmapUserScores.class).getScores();
 
-        if (scores == null || scores.isEmpty()) throw new LazybotRuntimeException("找不到该玩家在" + beatmapId + "上的成绩");
+        if (scores == null || scores.isEmpty()) throw new InvalidScoreException("找不到该玩家在" + beatmapId + "上的成绩");
         BeatmapDTO beatmapDTO = new ApiRequestStarter(URLBuildUtil.buildURLOfBeatmap(String.valueOf(beatmapId),OsuMode.Osu), TokenMonitor.getToken())
                 .executeRequest(HTTPTypeEnum.GET, BeatmapDTO.class);
 
@@ -215,7 +217,7 @@ public class PlayerServiceImpl implements PlayerService
             }
         }
         if (bestScore == null) {
-            throw new LazybotRuntimeException("无法获得有效的最佳成绩");
+            throw new InvalidScoreException("无法获得有效的最佳成绩");
         }
         return addScore(bestScore,bestPerformance,beatmapDTO,id,beatmapId);
     }
@@ -265,11 +267,11 @@ public class PlayerServiceImpl implements PlayerService
     {
         PlayerSummaryPO player = playerSummaryMapper.selectById(id);
         if (player == null) {
-            throw new LazybotRuntimeException("找不到该玩家");
+            throw new PlayerNotFoundException("找不到该玩家");
         }
         logger.info("正在查询玩家{}在{}上的成绩", id, dimension.getDbColumn());
         List<ScorePerformanceDTO> scores = scoresMapper.selectBestScoresInSingleDimension(id, dimension.getDbColumn(), limit, offset);
-        if (scores == null || scores.isEmpty()) throw new LazybotRuntimeException("找不到玩家" + id + "在" + dimension.getDbColumn() + "上的成绩");
+        if (scores == null || scores.isEmpty()) throw new InvalidScoreException("找不到玩家" + id + "在" + dimension.getDbColumn() + "上的成绩");
 
         List<Long> scoreIds = scores.stream().map(ScorePerformanceDTO::getScoreId).toList();
 

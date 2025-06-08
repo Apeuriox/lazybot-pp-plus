@@ -17,7 +17,7 @@ public class ResultUtil
     private static final Integer TEAPOT_CODE = 418;
 
     public static WebResult success(Object o){
-        return new WebResult(SUCCESS_CODE, o, "成功");
+        return new WebResult(SUCCESS_CODE, o, "Success");
     }
     public static WebResult success(Object o,String msg){
         return new WebResult(SUCCESS_CODE, o, msg);

@@ -25,8 +25,8 @@ public class BeatmapPO {
 
     public BeatmapPO(BeatmapDTO beatmap, BeatmapsetDTO beatmapset) {
         this.id= Long.valueOf(beatmap.getId());
-        this.title=beatmapset.getTitle_unicode();
-        this.artist=beatmapset.getArtist_unicode();
+        this.title=beatmapset.getTitle();
+        this.artist=beatmapset.getArtist();
         this.version=beatmap.getVersion();
         this.bpm=beatmap.getBpm();
         this.checksum=beatmap.getChecksum();
