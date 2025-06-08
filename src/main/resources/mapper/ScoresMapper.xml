@@ -12,7 +12,7 @@
         <result column="pp_jump" jdbcType="DOUBLE" property="ppJump"/>
         <result column="pp_flow" jdbcType="DOUBLE" property="ppFlow"/>
         <result column="pp_stamina" jdbcType="DOUBLE" property="ppStamina"/>
-        <result column="pp_precision" jdbcType="DOUBLE" property="ppSpeed"/>
+        <result column="pp_precision" jdbcType="DOUBLE" property="ppPrecision"/>
         <result column="pp_accuracy" jdbcType="DOUBLE" property="ppAccuracy"/>
         <result column="pp" jdbcType="DOUBLE" property="pp"/>
         <result column="combo" jdbcType="INTEGER" property="combo"/>
@@ -30,7 +30,7 @@
         <result column="pp_jump" jdbcType="DOUBLE" property="ppJump"/>
         <result column="pp_flow" jdbcType="DOUBLE" property="ppFlow"/>
         <result column="pp_stamina" jdbcType="DOUBLE" property="ppStamina"/>
-        <result column="pp_precision" jdbcType="DOUBLE" property="ppSpeed"/>
+        <result column="pp_precision" jdbcType="DOUBLE" property="ppPrecision"/>
         <result column="pp_accuracy" jdbcType="DOUBLE" property="ppAccuracy"/>
 
         <association property="player" javaType="me.aloic.lazybotppplus.entity.po.PlayerSummaryPO">
@@ -44,6 +44,7 @@
             <result column="artist" property="artist" />
             <result column="version" property="version" />
             <result column="bpm" property="bpm" />
+            <result column="checksum" property="checksum" />
         </association>
 
         <association property="statistics" javaType="me.aloic.lazybotppplus.entity.po.ScoreStatisticsPO">
@@ -64,7 +65,7 @@
         SELECT
             s.id AS score_id, s.accuracy, s.pp, s.combo, s.created_at,s.pp_speed, s.pp_aim, s.pp_jump, s.pp_flow, s.pp_stamina, s.pp_precision, s.pp_accuracy,
             p.id AS player_id, p.last_updated,
-            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm,
+            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum,
             st.count_300, st.count_100, st.count_50, st.count_0, st.count_tick, st.count_end
         FROM scores s
                  LEFT JOIN player_summary p ON s.player_id = p.id
@@ -76,9 +77,9 @@
 
 
     <select id="selectById" parameterType="java.lang.Long" resultMap="BaseResultMap">
-        select <include refid="Base_Column_List"/>
-        from scores
-        where id =#{id,jdbcType=BIGINT}
+        SELECT <include refid="Base_Column_List"/>
+        FROM scores
+        WHERE id =#{id,jdbcType=BIGINT}
     </select>
 
     <select id="selectTopScoresByPlayerIdAndDimension" resultMap="BaseResultMap">
@@ -102,7 +103,7 @@
         FROM scores s
         WHERE s.player_id = #{playerId}
         ) ranked
-        WHERE rn &lt;= 100
+        WHERE rn &lt;= 200
     </select>
 
     <insert id="insertBatch" parameterType="list">
@@ -112,5 +113,43 @@
             (#{item.id}, #{item.playerId}, #{item.beatmapId}, #{item.accuracy},#{item.ppSpeed}, #{item.ppAim}, #{item.ppJump}, #{item.ppFlow},#{item.ppStamina},#{item.ppPrecision},#{item.ppAccuracy},#{item.pp},#{item.combo}, #{item.createdAt})
         </foreach>
     </insert>
+
+    <select id="selectByPlayerIdAndBeatmapId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM scores
+        WHERE player_id = #{playerId} AND beatmap_id = #{beatmapId}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM scores WHERE id = #{id}
+    </delete>
+
+    <select id="selectBestScoresByPlayerAndBeatmapIds" resultMap="BaseResultMap">
+        SELECT *
+        FROM scores
+        WHERE player_id = #{playerId}
+        AND beatmap_id IN
+        <foreach collection="beatmapIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="selectBestScoresInSingleDimension" resultMap="ScoreDetailMap">
+        SELECT
+            s.id AS score_id, s.accuracy, s.pp, s.combo, s.created_at,s.pp_speed, s.pp_aim, s.pp_jump, s.pp_flow, s.pp_stamina, s.pp_precision, s.pp_accuracy,
+            p.id AS player_id, p.last_updated,
+            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum,
+            st.count_300, st.count_100, st.count_50, st.count_0, st.count_tick, st.count_end
+        FROM scores s
+                 LEFT JOIN player_summary p ON s.player_id = p.id
+                 LEFT JOIN beatmap b ON s.beatmap_id = b.id
+                 LEFT JOIN score_statistics st ON s.id = st.score_id
+        WHERE s.player_id = #{playerId}
+        ORDER BY
+            ${dimension} DESC
+        LIMIT #{limit}
+        OFFSET #{offset}
+    </select>
+
 
 </mapper>

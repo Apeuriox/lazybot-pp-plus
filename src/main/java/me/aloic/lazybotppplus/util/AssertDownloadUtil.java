@@ -101,6 +101,7 @@ public class AssertDownloadUtil
     }
 
 
+
     private static void fileDownloadJavaHttpClient(String targetUrl, String desiredLocalPath) throws Exception {
         int attempt = 0;
         while (attempt < MAX_RETRIES) {

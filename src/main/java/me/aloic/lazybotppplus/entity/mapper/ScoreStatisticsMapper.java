@@ -11,4 +11,6 @@ import java.util.List;
 public interface ScoreStatisticsMapper extends BaseMapper<ScoreStatisticsPO>
 {
     void insertBatch(List<ScoreStatisticsPO> stat);
+    void deleteByScoreId(Long scoreId);
+    void insertSingle(ScoreStatisticsPO stat);
 }
