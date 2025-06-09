@@ -30,7 +30,7 @@ public class ResourceMonitor
                 throw new IOException("无法创建目标目录：" + workingDir);
             }
             resourcePath = Paths.get(targetDir.getAbsolutePath());
-            createOsuDirectories(resourcePath);
+//            createOsuDirectories(resourcePath);
             logger.info("资源路径获取成功：{}", targetDir.getAbsolutePath());
         }
         catch (Exception e)

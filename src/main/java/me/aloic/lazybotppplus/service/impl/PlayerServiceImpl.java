@@ -305,6 +305,7 @@ public class PlayerServiceImpl implements PlayerService
                 .sorted(Comparator.reverseOrder())
                 .toList();
     }
+
     @Transactional
     protected PlayerStats checkInitializationStatus(Long id)
     {
@@ -329,6 +330,7 @@ public class PlayerServiceImpl implements PlayerService
             double result = calcWeightedTotalPerformance(sortedValues);
             dim.getSetter().accept(performance, result);
         }
+        performance.setPpPrecision(performance.getPpPrecision() * 10);
         logger.info("计算完成");
         return new PlayerStats(id, performance);
     }
@@ -340,7 +342,7 @@ public class PlayerServiceImpl implements PlayerService
         perf.setPpAim(calcWeightedTotalPerformance(getSortedScores(scores, ScorePO::getPpAim)));
         perf.setPpFlowAim(calcWeightedTotalPerformance(getSortedScores(scores, ScorePO::getPpFlow)));
         perf.setPpJumpAim(calcWeightedTotalPerformance(getSortedScores(scores, ScorePO::getPpJump)));
-        perf.setPpPrecision(calcWeightedTotalPerformance(getSortedScores(scores, ScorePO::getPpPrecision)));
+        perf.setPpPrecision(calcWeightedTotalPerformance(getSortedScores(scores, ScorePO::getPpPrecision))*10);
         perf.setPpSpeed(calcWeightedTotalPerformance(getSortedScores(scores, ScorePO::getPpSpeed)));
         perf.setPpStamina(calcWeightedTotalPerformance(getSortedScores(scores, ScorePO::getPpStamina)));
         return perf;

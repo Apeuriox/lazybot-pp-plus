@@ -21,7 +21,7 @@ public class RateLimitInterceptor implements HandlerInterceptor
 
     private Bucket resolveBucket(String ip) {
         return cache.computeIfAbsent(ip, k -> Bucket.builder()
-                .addLimit(limit -> limit.capacity(100).refillGreedy(10, Duration.ofMinutes(1)))
+                .addLimit(limit -> limit.capacity(100).refillGreedy(20, Duration.ofMinutes(1)))
                 .build());
     }
 

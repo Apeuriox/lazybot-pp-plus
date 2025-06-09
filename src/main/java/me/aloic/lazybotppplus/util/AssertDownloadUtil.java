@@ -75,7 +75,7 @@ public class AssertDownloadUtil
     }
     public static boolean beatmapDownload(Integer bid,Boolean override)
     {
-        String desiredLocalPath= ResourceMonitor.getResourcePath().toAbsolutePath()+ "/osuFiles/" + bid +".osu";
+        String desiredLocalPath= ResourceMonitor.getResourcePath().toAbsolutePath()+ "/" + bid +".osu";
         File saveFilePath = new File(desiredLocalPath);
         if (saveFilePath.exists() && !override) {
             logger.info("地图.osu文件已存在: {}", saveFilePath.getAbsolutePath());
@@ -97,7 +97,7 @@ public class AssertDownloadUtil
     public static Path beatmapPath(Integer bid,Boolean override)
     {
         beatmapDownload(bid,override);
-        return Paths.get(ResourceMonitor.getResourcePath().toAbsolutePath()+ "/osuFiles/" +bid +".osu");
+        return Paths.get(ResourceMonitor.getResourcePath().toAbsolutePath()+ "/" +bid +".osu");
     }
 
 
