@@ -24,13 +24,14 @@ public class IpWhitelistInterceptor implements HandlerInterceptor
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws IOException
     {
         String clientIp = getClientIp(request);
-        log.info("收到来自IP: {}的请求...", clientIp);
+        log.info("Receiving request from IP: {}...", clientIp);
         List<String> whitelist = securityProperties.getIpWhitelist();
 
         if (!whitelist.contains(clientIp)) {
             response.setStatus(HttpStatus.FORBIDDEN.value());
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write("{\"code\":403,\"msg\":\"bye bye\",\"data\":null}");
+            log.info("BLOCKED request from IP: {}", clientIp);
             return false;
         }
         return true;

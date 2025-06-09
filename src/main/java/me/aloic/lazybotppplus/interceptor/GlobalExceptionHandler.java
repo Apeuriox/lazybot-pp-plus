@@ -19,37 +19,37 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidScoreException.class)
     public ResponseEntity<WebResult> handleScoreNotFound(InvalidScoreException ex) {
-        log.warn("成绩未找到: {}", ex.getMessage());
+        log.warn("Score not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ResultUtil.notFound(ex.getMessage()));
     }
 
     @ExceptionHandler(PlayerNotFoundException.class)
     public ResponseEntity<WebResult> handlePlayerNotFound(PlayerNotFoundException ex) {
-        log.warn("玩家未初始化: {}", ex.getMessage());
+        log.warn("Player did not initialize: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ResultUtil.notFound(ex.getMessage()));
     }
 
     @ExceptionHandler(LazybotRuntimeException.class)
     public ResponseEntity<WebResult> handleRuntimeException(LazybotRuntimeException ex) {
-        log.warn("运行时错误: {}", ex.getMessage());
+        log.warn("Run time exception: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ResultUtil.error(ex.getMessage()));
     }
 
     @ExceptionHandler(NullPointerException.class)
     public ResponseEntity<WebResult> handleNullPointer(NullPointerException ex) {
-        log.error("空指针异常", ex);
+        log.error("Null pointer", ex);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ResultUtil.error("服务器内部异常：空指针"));
+                .body(ResultUtil.error("Server internal error, null pointer"));
     }
 
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<WebResult> handleGeneralException(Exception ex) {
-        log.error("系统未知异常", ex);
+        log.error("Unknown server error", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ResultUtil.error("服务器爆炸啦，请稍后重试"));
+                .body(ResultUtil.error("lol server goes boooom"));
     }
 }

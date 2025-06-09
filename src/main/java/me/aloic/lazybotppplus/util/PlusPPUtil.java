@@ -74,8 +74,8 @@ public class PlusPPUtil
             resultPerformance.setEffectiveMissCount(calcResult.osu.t.effective_miss_count);
         }
         catch (RosuFFI.FFIException e) {
-            logger.error("计算pp+时出错: {}", e.getMessage());
-            throw new LazybotRuntimeException("计算pp+时出错: " + e.getMessage());
+            logger.error("error during recalculation pp+: {}", e.getMessage());
+            throw new LazybotRuntimeException("error during recalculation: " + e.getMessage());
         }
         return resultPerformance;
     }

@@ -13,7 +13,6 @@ import me.aloic.lazybotppplus.enums.HTTPTypeEnum;
 import me.aloic.lazybotppplus.enums.OsuMode;
 import me.aloic.lazybotppplus.enums.PerformanceDimension;
 import me.aloic.lazybotppplus.exception.InvalidScoreException;
-import me.aloic.lazybotppplus.exception.LazybotRuntimeException;
 import me.aloic.lazybotppplus.exception.PlayerNotFoundException;
 import me.aloic.lazybotppplus.monitor.TokenMonitor;
 import me.aloic.lazybotppplus.service.PlayerService;
@@ -56,7 +55,7 @@ public class PlayerServiceImpl implements PlayerService
         PlayerStats playerResult=checkInitializationStatus(id);
         if (playerResult != null) return playerResult;
 
-        logger.info("请求玩家{}存在，正在计算...", id);
+        logger.info("Player {} existing, calculating...", id);
         return calcPlayerStats(id);
     }
 
@@ -67,15 +66,15 @@ public class PlayerServiceImpl implements PlayerService
                 TokenMonitor.getToken()
         ).executeRequestForList(HTTPTypeEnum.GET, ScoreLazerDTO.class);
         if (scoreLazerDTOS == null || scoreLazerDTOS.isEmpty()) {
-            throw new InvalidScoreException("找不到此玩家的成绩");
+            throw new InvalidScoreException("Player score can not be found");
         }
-        logger.info("玩家初始请求成绩列表大小: {}", scoreLazerDTOS.size());
+        logger.info("Initial size of player bp: {}", scoreLazerDTOS.size());
         if (scoreLazerDTOS.size() < 110) {
             scoreLazerDTOS.addAll(new ApiRequestStarter(
                     URLBuildUtil.buildURLOfUserBest(String.valueOf(id), 200-scoreLazerDTOS.size(), scoreLazerDTOS.size(), OsuMode.Osu),
                     TokenMonitor.getToken()).executeRequestForList(HTTPTypeEnum.GET, ScoreLazerDTO.class));
         }
-        logger.info("玩家BP成绩列表最终大小: {}", scoreLazerDTOS.size());
+        logger.info("Final size of player bps: {}", scoreLazerDTOS.size());
         int batchSize = (int) Math.ceil(scoreLazerDTOS.size() / (double) INITIALIZE_THREAD_LIMIT);
         List<List<ScoreLazerDTO>> partitions = new ArrayList<>();
         for (int i = 0; i < scoreLazerDTOS.size(); i += batchSize) {
@@ -105,7 +104,7 @@ public class PlayerServiceImpl implements PlayerService
                                 allMods.addAll(mods);
                             }
                         } catch (Exception e) {
-                            logger.error("计算PP+失败, 跳过该记录", e);
+                            logger.error("pp plus calculation failed, skipping", e);
                         }
                     }
                 }, VirtualThreadExecutorHolder.VIRTUAL_EXECUTOR))
@@ -115,7 +114,7 @@ public class PlayerServiceImpl implements PlayerService
         if (!allScores.isEmpty()) scoresMapper.insertBatch(allScores);
         if (!allMods.isEmpty()) scoreModMapper.insertBatch(allMods);
         if (!allStatistics.isEmpty()) scoreStatisticsMapper.insertBatch(allStatistics);
-        logger.info("完成玩家资料初始化");
+        logger.info("Player {} initialization completed", id);
         return allScores;
     }
 
@@ -131,6 +130,36 @@ public class PlayerServiceImpl implements PlayerService
         if(recentScores==null|| recentScores.isEmpty()) {
             throw new InvalidScoreException("我只能说bro你没打图");
         }
+        doUpdatesToDatabase(id, recentScores);
+        return calcPlayerStats(id);
+    }
+
+
+    @Transactional
+    @Override
+    public void updatePlayerStatsNoResult(Long id) {
+        PlayerStats playerResult=checkInitializationStatus(id);
+        if (playerResult != null) {
+            logger.warn("Player {} not existing, skipping",id);
+            return;
+        }
+        List<ScoreLazerDTO> recentScores =  new ApiRequestStarter(URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50,OsuMode.Osu),TokenMonitor.getToken())
+                .executeRequestForList(HTTPTypeEnum.GET, ScoreLazerDTO.class);
+        if(recentScores==null|| recentScores.isEmpty()) {
+            logger.warn("Player {} do not have recently played scores, skipping",id);
+            return;
+        }
+        doUpdatesToDatabase(id, recentScores);
+        logger.info("Successfully updated player {}",id);
+    }
+
+
+    private void doUpdatesToDatabase(Long id, List<ScoreLazerDTO> recentScores)
+    {
+        logger.info("initial size of score list: {}" ,recentScores.size());
+        recentScores=recentScores.stream().filter(score -> !score.getRanked()).toList();
+        logger.info("filtered size of score list: {}" ,recentScores.size());
+        if (recentScores.isEmpty()) return;
         Set<Long> beatmapIds = recentScores.stream()
                 .mapToLong(ScoreLazerDTO::getBeatmap_id)
                 .boxed()
@@ -166,31 +195,28 @@ public class PlayerServiceImpl implements PlayerService
                                 .toList());
                     }
                     insertStats.add(new ScoreStatisticsPO(dto.getStatistics(), scoreId));
-                    logger.info("已更新成绩id:{}在{}的成绩到{}",scoreId,beatmapId,id);
+                    logger.info("Updated scoresId:{} on {} to {}",scoreId,beatmapId,id);
                 }
                 else {
-                    logger.info("ScoreId:{}，地图{}已有更好成绩，跳过执行",scoreId,beatmapId);
+                    logger.info("Player already got better score on {}, ScoreId:{}",scoreId, beatmapId);
                 }
             }
             catch (Exception e) {
-                logger.error("计算PP+失败, 跳过该记录", e);
+                logger.error("pp plus calculation failed, skipping", e);
             }
         }
         if (!insertStats.isEmpty()) beatmapMapper.insertBatchIgnoreDuplicate(insertBeatmaps);
         if (!insertList.isEmpty()) scoresMapper.insertBatch(insertList);
         if (!insertMods.isEmpty()) scoreModMapper.insertBatch(insertMods);
         if (!insertStats.isEmpty()) scoreStatisticsMapper.insertBatch(insertStats);
-
-        return calcPlayerStats(id);
     }
-
     @Transactional
     @Override
     public ScorePerformanceDTO addScore(Long id, Integer beatmapId)
     {
         PlayerSummaryPO player = playerSummaryMapper.selectById(id);
         if (player == null) {
-           throw new PlayerNotFoundException("找不到该玩家");
+           throw new PlayerNotFoundException("No such player");
         }
 
         List<ScoreLazerDTO> scores = new ApiRequestStarter(
@@ -198,7 +224,8 @@ public class PlayerServiceImpl implements PlayerService
                 TokenMonitor.getToken())
                 .executeRequest(HTTPTypeEnum.GET, BeatmapUserScores.class).getScores();
 
-        if (scores == null || scores.isEmpty()) throw new InvalidScoreException("找不到该玩家在" + beatmapId + "上的成绩");
+        if (scores == null || scores.isEmpty()) throw new InvalidScoreException("Failed to find scores on" + beatmapId);
+        scores=scores.stream().filter(score -> !score.getRanked()).toList();
         BeatmapDTO beatmapDTO = new ApiRequestStarter(URLBuildUtil.buildURLOfBeatmap(String.valueOf(beatmapId),OsuMode.Osu), TokenMonitor.getToken())
                 .executeRequest(HTTPTypeEnum.GET, BeatmapDTO.class);
 
@@ -213,11 +240,11 @@ public class PlayerServiceImpl implements PlayerService
                     bestPerformance = performance;
                 }
             } catch (Exception e) {
-                logger.warn("计算失败，跳过成绩: {}", lazerScore.getId(), e);
+                logger.warn("Failed to recalculate pp+ stats: {}", lazerScore.getId(), e);
             }
         }
         if (bestScore == null) {
-            throw new InvalidScoreException("无法获得有效的最佳成绩");
+            throw new InvalidScoreException("Failed to find best score for player " + id + " on beatmap " + beatmapId);
         }
         return addScore(bestScore,bestPerformance,beatmapDTO,id,beatmapId);
     }
@@ -242,10 +269,10 @@ public class PlayerServiceImpl implements PlayerService
             if (!modPOList.isEmpty()) {
                 scoreModMapper.insertBatch(modPOList);
             }
-            logger.info("替换 playerId={} beatmapId={} 的 bestScore: {}", id, beatmapId, bestScore.getId());
+            logger.info("overriding score: playerId={} beatmapId={} bestScore: {}", id, beatmapId, bestScore.getId());
             return scoresMapper.selectScoreDetailById(bestScore.getId());
         } else {
-            logger.info("已有更高分数，跳过更新");
+            logger.info("Player already got better score, skipping");
             return scoresMapper.selectScoreDetailById(oldScore.getId());
         }
     }
@@ -267,11 +294,11 @@ public class PlayerServiceImpl implements PlayerService
     {
         PlayerSummaryPO player = playerSummaryMapper.selectById(id);
         if (player == null) {
-            throw new PlayerNotFoundException("找不到该玩家");
+            throw new PlayerNotFoundException("No such player");
         }
-        logger.info("正在查询玩家{}在{}上的成绩", id, dimension.getDbColumn());
+        logger.info("Query player {}'s score on {}", id, dimension.getDbColumn());
         List<ScorePerformanceDTO> scores = scoresMapper.selectBestScoresInSingleDimension(id, dimension.getDbColumn(), limit, offset);
-        if (scores == null || scores.isEmpty()) throw new InvalidScoreException("找不到玩家" + id + "在" + dimension.getDbColumn() + "上的成绩");
+        if (scores == null || scores.isEmpty()) throw new InvalidScoreException("Failed to find" + id + "'s score on" + dimension.getDbColumn());
 
         List<Long> scoreIds = scores.stream().map(ScorePerformanceDTO::getScoreId).toList();
 
@@ -284,7 +311,7 @@ public class PlayerServiceImpl implements PlayerService
                 detail.setMods(scoreMods.stream().map(ScoreModPO::getMod).toList());
             }
         }
-        logger.info("查询成功");
+        logger.info("Query successful");
         return scores;
     }
 
@@ -311,7 +338,7 @@ public class PlayerServiceImpl implements PlayerService
     {
         PlayerSummaryPO player = playerSummaryMapper.selectById(id);
         if (player == null) {
-            logger.info("请求玩家{}无数据，正在初始化...", id);
+            logger.info("cannot find target scores for {}, initializing...", id);
             playerSummaryMapper.insert(new PlayerSummaryPO(id, LocalDateTime.now()));
             List<ScorePO> scores = initializePlayerStats(id);
             return new PlayerStats(id, calculatePerformanceFromScores(scores));
@@ -331,7 +358,7 @@ public class PlayerServiceImpl implements PlayerService
             dim.getSetter().accept(performance, result);
         }
         performance.setPpPrecision(performance.getPpPrecision() * 10);
-        logger.info("计算完成");
+        logger.info("Calculated player {}'s stats", id);
         return new PlayerStats(id, performance);
     }
 
