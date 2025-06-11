@@ -15,9 +15,13 @@ public interface PlayerService
     @Transactional
     PlayerStats updatePlayerStats(Long id);
 
+    @Transactional
+    void updatePlayerStatsNoResult(Long id);
+
     ScorePerformanceDTO addScore(Long id, Integer beatmapId);
 
     ScorePerformanceDTO getScorePerformance(Long id);
 
     List<ScorePerformanceDTO> bestScoresInSingleDimension(Long id, PerformanceDimension dimension, Integer limit, Integer offset);
+
 }

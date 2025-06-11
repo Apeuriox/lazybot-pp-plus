@@ -11,4 +11,5 @@ public interface PlayerSummaryMapper extends BaseMapper<PlayerSummaryPO>
 {
     void insertBatch(List<PlayerSummaryPO> players);
     PlayerSummaryPO selectById(Long id);
+    List<PlayerSummaryPO> selectAll();
 }

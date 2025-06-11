@@ -3,6 +3,11 @@
 
 <mapper namespace="me.aloic.lazybotppplus.entity.mapper.PlayerSummaryMapper">
 
+    <resultMap id="BaseResultMap" type="me.aloic.lazybotppplus.entity.po.PlayerSummaryPO">
+        <id column="id" jdbcType="BIGINT" property="id"/>
+        <result column="last_updated" jdbcType="DATE" property="lastUpdated"/>
+    </resultMap>
+
     <sql id = "Base_Column_List">
         id, last_updated
     </sql>
@@ -21,5 +26,9 @@
         select <include refid="Base_Column_List"/>
         from player_summary
         where id =#{id}
+    </select>
+    <select id="selectAll" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from player_summary
     </select>
 </mapper>

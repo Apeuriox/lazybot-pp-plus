@@ -19,7 +19,7 @@ public class ResourceMonitor
 
     public static void initResources()
     {
-        logger.info("正在初始化静态资源");
+        logger.info("Initializing resources...");
         try{
             String workingDir = System.getenv("LAZYBOT_DIR");
             if (workingDir == null || workingDir.isEmpty()) {
@@ -27,23 +27,23 @@ public class ResourceMonitor
             }
             File targetDir = new File(workingDir);
             if (!targetDir.exists() && !targetDir.mkdirs()) {
-                throw new IOException("无法创建目标目录：" + workingDir);
+                throw new IOException("Can not create target folder：" + workingDir);
             }
             resourcePath = Paths.get(targetDir.getAbsolutePath());
-            createOsuDirectories(resourcePath);
-            logger.info("资源路径获取成功：{}", targetDir.getAbsolutePath());
+//            createOsuDirectories(resourcePath);
+            logger.info("Resources path created successfully：{}", targetDir.getAbsolutePath());
         }
         catch (Exception e)
         {
             logger.error(e.getMessage());
-            throw new LazybotRuntimeException("释放静态资源时出错: " + e.getMessage());
+            throw new LazybotRuntimeException("Initialize resources failed: " + e.getMessage());
         }
     }
 
 
     public static Path getResourcePath() {
         if (resourcePath == null) {
-            throw new IllegalStateException("工作目录未初始化！");
+            throw new IllegalStateException("resource path did not initialize！");
         }
         return resourcePath;
     }
@@ -60,11 +60,11 @@ public class ResourceMonitor
         if (!dir.exists()) {
             boolean created = dir.mkdirs();
             if (!created) {
-                throw new IOException("无法创建目录：" + dir.getAbsolutePath());
+                throw new IOException("Can not create target folder：" + dir.getAbsolutePath());
             }
-            logger.info("目录已创建：{}", dir.getAbsolutePath());
+            logger.info("Folder created：{}", dir.getAbsolutePath());
         } else {
-            logger.info("目录已存在：{}", dir.getAbsolutePath());
+            logger.info("Folder existed：{}", dir.getAbsolutePath());
         }
     }
 

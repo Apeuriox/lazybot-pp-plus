@@ -73,7 +73,7 @@
         <dependency>
             <groupId>me.zhjk</groupId>
             <artifactId>rosu-ppplus</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.2</version>
         </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>
@@ -89,6 +89,11 @@
             <groupId>com.bucket4j</groupId>
             <artifactId>bucket4j_jdk17-core</artifactId>
             <version>8.14.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.auth0</groupId>
+            <artifactId>java-jwt</artifactId>
+            <version>4.4.0</version>
         </dependency>
     </dependencies>
 

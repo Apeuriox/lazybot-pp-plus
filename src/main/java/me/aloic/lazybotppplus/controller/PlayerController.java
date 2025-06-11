@@ -24,22 +24,22 @@ public class PlayerController
     @GetMapping("/info")
     public WebResult getPlayerInfo(@RequestParam(value = "id", required = true) Long id)
     {
-        logger.info("正在处理/player/info请求");
-        return ResultUtil.success(playerService.getPlayerStats(id),"成功获取");
+        logger.info("handling /player/info");
+        return ResultUtil.success(playerService.getPlayerStats(id),"Query successful");
     }
     @GetMapping("/score")
     public WebResult getMapStats(@RequestParam(value = "score", required = true) Long scoreId)
     {
-        logger.info("正在处理/player/search请求");
-        return ResultUtil.success(playerService.getScorePerformance(scoreId),"成功获取成绩");
+        logger.info("handling /player/search");
+        return ResultUtil.success(playerService.getScorePerformance(scoreId),"score details successfully queried");
     }
 
 
     @PostMapping("/update")
     public WebResult updatePlayerInfo(@RequestParam(value = "id", required = true) Long id)
     {
-        logger.info("正在处理/player/update请求");
-        return ResultUtil.success(playerService.updatePlayerStats(id),"更新成功");
+        logger.info("handling /player/update");
+        return ResultUtil.success(playerService.updatePlayerStats(id),"updated successful");
     }
 
 
@@ -47,8 +47,8 @@ public class PlayerController
     public WebResult getPlayerInfo(@RequestParam(value = "id", required = true) Long id,
                                    @RequestParam(value = "beatmapId", required = true) Integer beatmapId)
     {
-        logger.info("正在处理/player/add请求");
-        return ResultUtil.success(playerService.addScore(id,beatmapId),"添加成功");
+        logger.info("handling /player/add");
+        return ResultUtil.success(playerService.addScore(id,beatmapId),"added successful");
     }
 
 
@@ -58,7 +58,7 @@ public class PlayerController
                                    @RequestParam(value = "limit", required = true) Integer limit,
                                    @RequestParam(value = "offset", required = true) Integer offset)
     {
-        logger.info("正在处理/player/dimension请求");
-        return ResultUtil.success(playerService.bestScoresInSingleDimension(id, PerformanceDimension.getDimension(dimension),limit,offset),"成功查询");
+        logger.info("handling /player/dimension");
+        return ResultUtil.success(playerService.bestScoresInSingleDimension(id, PerformanceDimension.getDimension(dimension),limit,offset),"dimension query successful");
     }
 }
