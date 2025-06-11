@@ -1,10 +1,9 @@
-package me.aloic.lazybotppplus.component;
+package me.aloic.lazybotppplus.interceptor;
 
-import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -17,17 +16,27 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RateLimitInterceptor implements HandlerInterceptor
 {
 
+    @Value("${rate-limit.enabled}")
+    private Boolean enabled;
+    @Value("${rate-limit.capacity}")
+    private Integer capacity = 100;
+    @Value("${rate-limit.refill}")
+    private Integer refill = 20;
+
     private final Map<String, Bucket> cache = new ConcurrentHashMap<>();
 
     private Bucket resolveBucket(String ip) {
         return cache.computeIfAbsent(ip, k -> Bucket.builder()
-                .addLimit(limit -> limit.capacity(100).refillGreedy(20, Duration.ofMinutes(1)))
+                .addLimit(limit -> limit.capacity(capacity).refillGreedy(refill, Duration.ofMinutes(1)))
                 .build());
     }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws IOException
     {
+        if (!enabled){
+            return true;
+        }
         String ip = request.getRemoteAddr();
         Bucket bucket = resolveBucket(ip);
         if (bucket.tryConsume(1)) {

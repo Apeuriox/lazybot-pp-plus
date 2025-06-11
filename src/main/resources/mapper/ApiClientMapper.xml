@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="me.aloic.lazybotppplus.entity.mapper.ApiClientMapper">
+    <resultMap id="BaseResultMap" type="me.aloic.lazybotppplus.entity.po.ApiClientPO">
+        <id column="id" jdbcType="INTEGER" property="id"/>
+        <result column="client_id" jdbcType="INTEGER" property="clientId"/>
+        <result column="client_secret" jdbcType="VARCHAR" property="clientSecret"/>
+        <result column="description" jdbcType="VARCHAR" property="description"/>
+        <result column="created_at" jdbcType="DATE" property="createdAt"/>
+    </resultMap>
+    <sql id = "Base_Column_List">
+        id, client_id, client_secret, description, created_at
+    </sql>
+    <select id="selectByClientId" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from api_client
+        where client_id =#{clientId}
+    </select>
+
+</mapper>

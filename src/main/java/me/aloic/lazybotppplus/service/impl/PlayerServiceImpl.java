@@ -128,7 +128,7 @@ public class PlayerServiceImpl implements PlayerService
         List<ScoreLazerDTO> recentScores =  new ApiRequestStarter(URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50,OsuMode.Osu),TokenMonitor.getToken())
                 .executeRequestForList(HTTPTypeEnum.GET, ScoreLazerDTO.class);
         if(recentScores==null|| recentScores.isEmpty()) {
-            throw new InvalidScoreException("我只能说bro你没打图");
+            throw new InvalidScoreException("nah bro didn't even pass a map");
         }
         doUpdatesToDatabase(id, recentScores);
         return calcPlayerStats(id);

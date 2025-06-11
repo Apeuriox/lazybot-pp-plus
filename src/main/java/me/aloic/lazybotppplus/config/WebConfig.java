@@ -1,7 +1,7 @@
 package me.aloic.lazybotppplus.config;
 
 import lombok.RequiredArgsConstructor;
-import me.aloic.lazybotppplus.component.RateLimitInterceptor;
+import me.aloic.lazybotppplus.interceptor.RateLimitInterceptor;
 import me.aloic.lazybotppplus.interceptor.IpWhitelistInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -22,4 +22,5 @@ public class WebConfig implements WebMvcConfigurer
                 .addPathPatterns("/**");
 
     }
+
 }
