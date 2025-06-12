@@ -1,5 +1,6 @@
 package me.aloic.lazybotppplus.service.impl;
 
+import com.alibaba.fastjson2.TypeReference;
 import jakarta.annotation.Resource;
 import me.aloic.lazybotppplus.entity.dto.lazybot.ScorePerformanceDTO;
 import me.aloic.lazybotppplus.entity.dto.osu.beatmap.BeatmapDTO;
@@ -19,6 +20,7 @@ import me.aloic.lazybotppplus.service.PlayerService;
 import me.aloic.lazybotppplus.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +48,9 @@ public class PlayerServiceImpl implements PlayerService
     @Resource
     private PlayerSummaryMapper playerSummaryMapper;
 
+    @Resource
+    private ApiRequestExecutor apiRequestExecutor;
+
     private static final Logger logger = LoggerFactory.getLogger(PlayerServiceImpl.class);
     private static final int INITIALIZE_THREAD_LIMIT = 10;
 
@@ -61,18 +66,28 @@ public class PlayerServiceImpl implements PlayerService
 
     @Transactional
     protected List<ScorePO> initializePlayerStats(Long id) {
-        List<ScoreLazerDTO> scoreLazerDTOS = new ApiRequestStarter(
+
+//        List<ScoreLazerDTO> scoreLazerDTOS = new ApiRequestStarter(
+//                URLBuildUtil.buildURLOfUserBest(String.valueOf(id), 100, 0, OsuMode.Osu),
+//                TokenMonitor.getToken()).executeRequestForList(HTTPTypeEnum.GET, ScoreLazerDTO.class);
+        List<ScoreLazerDTO> scoreLazerDTOS = apiRequestExecutor.execute(
                 URLBuildUtil.buildURLOfUserBest(String.valueOf(id), 100, 0, OsuMode.Osu),
-                TokenMonitor.getToken()
-        ).executeRequestForList(HTTPTypeEnum.GET, ScoreLazerDTO.class);
+                HTTPTypeEnum.GET,
+                TokenMonitor.getToken(),
+                null,
+                new TypeReference<List<ScoreLazerDTO>>() {}
+        );
         if (scoreLazerDTOS == null || scoreLazerDTOS.isEmpty()) {
             throw new InvalidScoreException("Player score can not be found");
         }
         logger.info("Initial size of player bp: {}", scoreLazerDTOS.size());
         if (scoreLazerDTOS.size() < 110) {
-            scoreLazerDTOS.addAll(new ApiRequestStarter(
+            scoreLazerDTOS.addAll(apiRequestExecutor.execute(
                     URLBuildUtil.buildURLOfUserBest(String.valueOf(id), 200-scoreLazerDTOS.size(), scoreLazerDTOS.size(), OsuMode.Osu),
-                    TokenMonitor.getToken()).executeRequestForList(HTTPTypeEnum.GET, ScoreLazerDTO.class));
+                    HTTPTypeEnum.GET,
+                    TokenMonitor.getToken(),
+                    null,
+                    new TypeReference<List<ScoreLazerDTO>>() {}));
         }
         logger.info("Final size of player bps: {}", scoreLazerDTOS.size());
         int batchSize = (int) Math.ceil(scoreLazerDTOS.size() / (double) INITIALIZE_THREAD_LIMIT);
@@ -125,8 +140,13 @@ public class PlayerServiceImpl implements PlayerService
         PlayerStats playerResult=checkInitializationStatus(id);
         if (playerResult != null) return playerResult;
 
-        List<ScoreLazerDTO> recentScores =  new ApiRequestStarter(URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50,OsuMode.Osu),TokenMonitor.getToken())
-                .executeRequestForList(HTTPTypeEnum.GET, ScoreLazerDTO.class);
+        List<ScoreLazerDTO> recentScores =  apiRequestExecutor.execute(
+                URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50,OsuMode.Osu),
+                HTTPTypeEnum.GET,
+                TokenMonitor.getToken(),
+                null,
+                new TypeReference<List<ScoreLazerDTO>>() {}
+        );
         if(recentScores==null|| recentScores.isEmpty()) {
             throw new InvalidScoreException("nah bro didn't even pass a map");
         }
@@ -143,8 +163,14 @@ public class PlayerServiceImpl implements PlayerService
             logger.warn("Player {} not existing, skipping",id);
             return;
         }
-        List<ScoreLazerDTO> recentScores =  new ApiRequestStarter(URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50,OsuMode.Osu),TokenMonitor.getToken())
-                .executeRequestForList(HTTPTypeEnum.GET, ScoreLazerDTO.class);
+        List<ScoreLazerDTO> recentScores =  apiRequestExecutor.execute(
+                URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50,OsuMode.Osu),
+                HTTPTypeEnum.GET,
+                TokenMonitor.getToken(),
+                null,
+                new TypeReference<List<ScoreLazerDTO>>() {}
+        );
+
         if(recentScores==null|| recentScores.isEmpty()) {
             logger.warn("Player {} do not have recently played scores, skipping",id);
             return;
@@ -157,7 +183,7 @@ public class PlayerServiceImpl implements PlayerService
     private void doUpdatesToDatabase(Long id, List<ScoreLazerDTO> recentScores)
     {
         logger.info("initial size of score list: {}" ,recentScores.size());
-        recentScores=recentScores.stream().filter(score -> !score.getRanked()).toList();
+        recentScores=recentScores.stream().filter(ScoreLazerDTO::getRanked).toList();
         logger.info("filtered size of score list: {}" ,recentScores.size());
         if (recentScores.isEmpty()) return;
         Set<Long> beatmapIds = recentScores.stream()
@@ -216,18 +242,24 @@ public class PlayerServiceImpl implements PlayerService
     {
         PlayerSummaryPO player = playerSummaryMapper.selectById(id);
         if (player == null) {
-           throw new PlayerNotFoundException("No such player");
+           throw new PlayerNotFoundException("Initialize player first!");
         }
 
-        List<ScoreLazerDTO> scores = new ApiRequestStarter(
+        List<ScoreLazerDTO> scores = apiRequestExecutor.execute(
                 URLBuildUtil.buildURLOfBeatmapScoreAll(String.valueOf(beatmapId), String.valueOf(id), OsuMode.Osu),
-                TokenMonitor.getToken())
-                .executeRequest(HTTPTypeEnum.GET, BeatmapUserScores.class).getScores();
+                HTTPTypeEnum.GET,
+                TokenMonitor.getToken(),
+                null,
+               BeatmapUserScores.class).getScores();
 
         if (scores == null || scores.isEmpty()) throw new InvalidScoreException("Failed to find scores on" + beatmapId);
-        scores=scores.stream().filter(score -> !score.getRanked()).toList();
-        BeatmapDTO beatmapDTO = new ApiRequestStarter(URLBuildUtil.buildURLOfBeatmap(String.valueOf(beatmapId),OsuMode.Osu), TokenMonitor.getToken())
-                .executeRequest(HTTPTypeEnum.GET, BeatmapDTO.class);
+        scores=scores.stream().filter(ScoreLazerDTO::getRanked).toList();
+        BeatmapDTO beatmapDTO = apiRequestExecutor.execute(
+                URLBuildUtil.buildURLOfBeatmap(String.valueOf(beatmapId),OsuMode.Osu),
+                HTTPTypeEnum.GET,
+                TokenMonitor.getToken(),
+                null,
+                BeatmapDTO.class);
 
         ScoreLazerDTO bestScore = null;
         PPPlusPerformance bestPerformance = null;

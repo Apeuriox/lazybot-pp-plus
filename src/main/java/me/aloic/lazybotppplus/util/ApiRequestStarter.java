@@ -39,6 +39,7 @@ public class ApiRequestStarter
 
     private static final Logger logger = LoggerFactory.getLogger(ApiRequestStarter.class);
 
+
     private static ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(1, 10, 30, TimeUnit.SECONDS
             , new SynchronousQueue<Runnable>(true)
             , Executors.defaultThreadFactory());
@@ -175,7 +176,6 @@ public class ApiRequestStarter
                 while (currentAttempt < reties) {
                     try {
                         HttpResponse response = HttpUtil.createGet(url.toString()).addHeaders(headers).execute();
-//                    handleHttpCode(response.getStatus());
                         if(response.getStatus()==404) {
                             logger.warn("<list> GET {} NOT FOUND, skipping", this.getUrl());
                             return new ArrayList<>();
@@ -208,6 +208,9 @@ public class ApiRequestStarter
             case HTTPTypeEnum.DELETE ->  HttpUtil.createRequest(Method.DELETE, url.toString()).addHeaders(headers).execute().body();
         }
         return new ArrayList<>();
+    }
+    private void checkTokenValidity(int status) throws InterruptedException
+    {
     }
 
 }

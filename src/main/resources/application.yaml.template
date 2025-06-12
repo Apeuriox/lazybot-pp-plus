@@ -4,7 +4,7 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url:
-    username: root
+    username:
     password:
     hikari:
       max-lifetime: 120000
@@ -18,8 +18,22 @@ lazybot:
   scopes: friends.read identify public
   client_secret:
   grant_type: authorization_code
+  token_key:
+  expire_time: 86400
+  decryption_key:
 
 security:
+  white-list: false
   ip-whitelist:
     - 127.0.0.1
-    -
+
+
+#mybatis-plus:
+#  configuration:
+#    default-executor-type: REUSE
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+rate-limit:
+  capacity: 100
+  refill: 20
+  enabled: false

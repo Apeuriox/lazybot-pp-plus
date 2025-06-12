@@ -10,7 +10,7 @@
     </parent>
     <groupId>me.aloic</groupId>
     <artifactId>lazybot-ppplus</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.1.6</version>
     <name>lazybot-ppplus</name>
     <description>lazybot-ppplus</description>
     <url/>

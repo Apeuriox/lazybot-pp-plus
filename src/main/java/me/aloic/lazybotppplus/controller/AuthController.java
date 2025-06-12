@@ -2,13 +2,11 @@ package me.aloic.lazybotppplus.controller;
 
 import jakarta.annotation.Resource;
 import me.aloic.lazybotppplus.entity.WebResult;
-import me.aloic.lazybotppplus.entity.po.ApiClientPO;
 import me.aloic.lazybotppplus.service.AuthService;
 import me.aloic.lazybotppplus.util.JwtTokenUtil;
 import me.aloic.lazybotppplus.util.ResultUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
