@@ -3,7 +3,7 @@ spring:
     name: lazybot-pp-plus
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url:
+    url: jdbc:
     username:
     password:
     hikari:
@@ -27,6 +27,8 @@ security:
   ip-whitelist:
     - 127.0.0.1
 
+uodater:
+  enabled: true
 
 #mybatis-plus:
 #  configuration:
