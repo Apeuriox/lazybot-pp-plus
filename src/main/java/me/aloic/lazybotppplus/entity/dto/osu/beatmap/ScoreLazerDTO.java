@@ -56,6 +56,43 @@ public class ScoreLazerDTO implements Serializable
     }
 
 
-
-
+    @Override
+    public String toString()
+    {
+        return "ScoreLazerDTO{" +
+                "classic_total_score=" + classic_total_score +
+                ", preserve=" + preserve +
+                ", processed=" + processed +
+                ", ranked=" + ranked +
+                ", maximum_statistics=" + maximum_statistics +
+                ", mods=" + mods +
+                ", statistics=" + statistics +
+                ", total_score_without_mods=" + total_score_without_mods +
+                ", beatmap_id=" + beatmap_id +
+                ", best_id=" + best_id +
+                ", id=" + id +
+                ", rank='" + rank + '\'' +
+                ", type='" + type + '\'' +
+                ", user_id=" + user_id +
+                ", accuracy=" + accuracy +
+                ", build_id=" + build_id +
+                ", ended_at='" + ended_at + '\'' +
+                ", has_replay=" + has_replay +
+                ", is_perfect_combo=" + is_perfect_combo +
+                ", legacy_perfect=" + legacy_perfect +
+                ", legacy_score_id=" + legacy_score_id +
+                ", legacy_total_score=" + legacy_total_score +
+                ", max_combo=" + max_combo +
+                ", passed=" + passed +
+                ", pp=" + pp +
+                ", ruleset_id=" + ruleset_id +
+                ", started_at='" + started_at + '\'' +
+                ", total_score=" + total_score +
+                ", replay=" + replay +
+                ", current_user_attributes=" + current_user_attributes +
+                ", beatmap=" + beatmap +
+                ", user=" + user +
+                ", beatmapset=" + beatmapset +
+                '}';
+    }
 }

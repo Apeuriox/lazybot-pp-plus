@@ -78,7 +78,7 @@ public class AssertDownloadUtil
         String desiredLocalPath= ResourceMonitor.getResourcePath().toAbsolutePath()+ "/" + bid +".osu";
         File saveFilePath = new File(desiredLocalPath);
         if (saveFilePath.exists() && !override) {
-            logger.info("地图.osu文件已存在: {}", saveFilePath.getAbsolutePath());
+            logger.trace("Beatmap file .osu existing: {}", saveFilePath.getAbsolutePath());
             return false;
         }
         String targetUrl= BEATMAP_DOWNLOAD_URL+ "/" +bid;
@@ -87,7 +87,7 @@ public class AssertDownloadUtil
         }
         catch (Exception e)
         {
-            logger.error("地图下载失败: {}", e.getMessage());
+            logger.warn("Beatmap download failed: {}", e.getMessage());
         }
 
         return true;
@@ -107,7 +107,7 @@ public class AssertDownloadUtil
         while (attempt < MAX_RETRIES) {
             try {
                 attempt++;
-                logger.info("尝试下载文件 (第 {} 次)： {} to {}", attempt, targetUrl, desiredLocalPath);
+                logger.info("Trying to download file ({} times)： {} to {}", attempt, targetUrl, desiredLocalPath);
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create(targetUrl))
                         .timeout(Duration.ofSeconds(30))
@@ -116,16 +116,16 @@ public class AssertDownloadUtil
                 Path path = Path.of(desiredLocalPath);
                 HttpResponse<Path> response = httpClient.send(request, HttpResponse.BodyHandlers.ofFile(path));
                 if (response.statusCode() == 200) {
-                    logger.info("文件下载成功，保存路径：{}", desiredLocalPath);
+                    logger.info("File download successful，save path：{}", desiredLocalPath);
                     return;
                 } else {
-                    throw new LazybotRuntimeException("HTTP 状态码：" + response.statusCode());
+                    throw new LazybotRuntimeException("HTTP status code：" + response.statusCode());
                 }
             } catch (Exception e) {
-                logger.warn("下载失败 (第 {} 次): {}", attempt, e.getMessage());
+                logger.warn("File download failed ({} times): {}", attempt, e.getMessage());
                 if (attempt >= MAX_RETRIES) {
-                    logger.error("重试三次后仍无法下载");
-                    throw new LazybotRuntimeException("三次重试后仍下载失败: " + e.getMessage());
+                    logger.error("Failed to download file after 3 retries");
+                    throw new LazybotRuntimeException("Failed to download file after 3 retries: " + e.getMessage());
                 }
                 Thread.sleep(2000);
             }

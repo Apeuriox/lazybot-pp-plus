@@ -30,7 +30,7 @@ public class TokenMonitor
     public void refreshClientToken()
     {
         try {
-            logger.info("Getting Token for client");
+            logger.info("[TOKEN] Getting Token for client");
             JSONObject jsonObject = new JSONObject();
             jsonObject.put("client_id", clientId);
             jsonObject.put("client_secret", clientSecret);
@@ -46,12 +46,12 @@ public class TokenMonitor
         }
         catch (Exception e) {
             logger.error("{} : {}", e.getClass(), e.getMessage());
-            throw new LazybotRuntimeException("刷新osu客户端Token失败");
+            throw new LazybotRuntimeException("[TOKEN] Token fresh failed");
         }
     }
     public static String getToken() {
         if (token == null) {
-            throw new IllegalStateException("令牌尚未获取！");
+            throw new IllegalStateException("[TOKEN] Token was not initialized yet！");
         }
         return token;
     }
