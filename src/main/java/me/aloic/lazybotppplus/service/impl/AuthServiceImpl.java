@@ -20,14 +20,14 @@ public class AuthServiceImpl implements AuthService
 
     @Override
     public boolean validate(Integer clientId, String clientSecretRaw) {
-        log.info("Validating client with id: {}", clientId);
+        log.info("[VALIDATE] Validating client with id: {}", clientId);
         ApiClientPO client = apiClientMapper.selectByClientId(clientId);
         return client != null && client.getClientSecret().equals(secretEncryption.encryption(clientSecretRaw));
     }
 
     @Override
     public ApiClientPO createClient(Integer clientId, String rawSecret, String description) {
-        log.info("Creating client with id: {}, description: {}", clientId, description);
+        log.info("[CREATE] Creating client with id: {}, description: {}", clientId, description);
         String encodedSecret = secretEncryption.encryption(rawSecret);
         ApiClientPO client = new ApiClientPO(clientId, encodedSecret, description);
         apiClientMapper.insert(client);

@@ -78,7 +78,7 @@ public class AssertDownloadUtil
         String desiredLocalPath= ResourceMonitor.getResourcePath().toAbsolutePath()+ "/" + bid +".osu";
         File saveFilePath = new File(desiredLocalPath);
         if (saveFilePath.exists() && !override) {
-            logger.info("Beatmap file .osu existing: {}", saveFilePath.getAbsolutePath());
+            logger.trace("Beatmap file .osu existing: {}", saveFilePath.getAbsolutePath());
             return false;
         }
         String targetUrl= BEATMAP_DOWNLOAD_URL+ "/" +bid;
@@ -87,7 +87,7 @@ public class AssertDownloadUtil
         }
         catch (Exception e)
         {
-            logger.error("Beatmap download failed: {}", e.getMessage());
+            logger.warn("Beatmap download failed: {}", e.getMessage());
         }
 
         return true;
