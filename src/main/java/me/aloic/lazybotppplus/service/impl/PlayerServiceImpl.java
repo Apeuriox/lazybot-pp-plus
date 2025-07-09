@@ -194,7 +194,11 @@ public class PlayerServiceImpl implements PlayerService
         Map<Long, ScorePO> existingScores = scoresMapper
                 .selectBestScoresByPlayerAndBeatmapIds(id, beatmapIds)
                 .stream()
-                .collect(Collectors.toMap(ScorePO::getBeatmapId, Function.identity()));
+                .collect(Collectors.toMap(
+                        ScorePO::getBeatmapId,
+                        Function.identity(),
+                        (existing, incoming) -> existing.getPp() >= incoming.getPp() ? existing : incoming
+                ));
 
         List<ScorePO> insertList = new ArrayList<>();
         List<ScoreModPO> insertMods = new ArrayList<>();
@@ -209,9 +213,9 @@ public class PlayerServiceImpl implements PlayerService
                 ScorePO existing = existingScores.get(beatmapId);
                 if (existing == null || newScore.getPp() > existing.getPp()) {
                     if (existing != null) {
-                        scoresMapper.deleteById(existing.getId());
                         scoreModMapper.deleteByScoreId(existing.getId());
                         scoreStatisticsMapper.deleteByScoreId(existing.getId());
+                        scoresMapper.deleteById(existing.getId());
                     }
                     insertBeatmaps.add(new BeatmapPO(dto.getBeatmap(),dto.getBeatmapset()));
                     insertList.add(newScore);
@@ -236,6 +240,7 @@ public class PlayerServiceImpl implements PlayerService
         if (!insertMods.isEmpty()) scoreModMapper.insertBatch(insertMods);
         if (!insertStats.isEmpty()) scoreStatisticsMapper.insertBatch(insertStats);
     }
+
     @Transactional
     @Override
     public ScorePerformanceDTO addScore(Long id, Integer beatmapId)

@@ -31,4 +31,17 @@
         select <include refid="Base_Column_List"/>
         from player_summary
     </select>
+
+    <select id="selectPlayerCount" resultType="java.lang.Integer">
+        select COUNT(*)
+        from player_summary
+    </select>
+
+    <select id="selectPlayersWithLimit" resultType="me.aloic.lazybotppplus.entity.po.PlayerSummaryPO">
+        SELECT <include refid="Base_Column_List"/>
+        FROM player_summary
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+
 </mapper>

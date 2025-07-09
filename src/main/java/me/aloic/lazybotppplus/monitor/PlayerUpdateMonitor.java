@@ -1,5 +1,8 @@
 package me.aloic.lazybotppplus.monitor;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import me.aloic.lazybotppplus.entity.mapper.PlayerSummaryMapper;
@@ -10,8 +13,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.Set;
+import java.util.concurrent.*;
 
 @Slf4j
 @Component
@@ -24,34 +27,47 @@ public class PlayerUpdateMonitor
     @Resource
     private PlayerSummaryMapper playerSummaryMapper;
 
+    private static final int PAGE_SIZE = 100;
+
     @Scheduled(cron = "0 0 3 * * ?")
     public void schedulePlayerUpdate()
     {
         log.info("Hello Im about to start updating players...");
         long start = System.currentTimeMillis();
-        List<PlayerSummaryPO> players = playerSummaryMapper.selectAll();
-        if (players == null || players.isEmpty()) {
-            log.warn("oops, no players to update");
-            return;
-        }
+
+        int currentPage = 1;
+        int totalUpdatedPlayers = 0;
+        ExecutorService executor = Executors.newFixedThreadPool(25);
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (PlayerSummaryPO player : players) {
-            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                try {
-                    playerService.updatePlayerStatsNoResult(player.getId());
-                } catch (Exception e) {
-                    log.error("Failed to update player {}: {}", player.getId(), e.getMessage(), e);
-                }
-            });
-            futures.add(future);
-            try {
-                TimeUnit.MILLISECONDS.sleep(15);
-            } catch (InterruptedException ignored) {
+//        Set<Long> failedPlayerIds = ConcurrentHashMap.newKeySet();
+        while (true) {
+            List<PlayerSummaryPO> players = playerSummaryMapper.selectPlayersWithLimit(PAGE_SIZE*(currentPage-1), PAGE_SIZE);
+            if (players == null || players.isEmpty()) {
+                break;
+            }
+            for (PlayerSummaryPO player : players) {
+//                if (failedPlayerIds.contains(player.getId())) continue;
+                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                    try {
+                        playerService.updatePlayerStatsNoResult(player.getId());
+                    } catch (Exception e) {
+                        log.error("Failed to update player {}: {}", player.getId(), e.getMessage(), e);
+//                        failedPlayerIds.add(player.getId());
+                    }
+                }, executor);
+                futures.add(future);
+            }
+            totalUpdatedPlayers+=players.size();
+            currentPage++;
+            if (players.size()< PAGE_SIZE) {
+                break;
             }
         }
+
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
         long end = System.currentTimeMillis();
-        log.info("All players updated！ size: {}", players.size());
-        log.info("Total time consumed: {}ms, Avg.: {}ms/player", (end - start), (end - start) / players.size());
+        log.info("All players updated！ size: {}", totalUpdatedPlayers);
+        log.info("Total time consumed: {}ms, Avg.: {}ms/player", (end - start), (end - start) / totalUpdatedPlayers);
     }
 }
