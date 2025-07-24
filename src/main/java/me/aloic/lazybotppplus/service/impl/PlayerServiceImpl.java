@@ -20,7 +20,6 @@ import me.aloic.lazybotppplus.service.PlayerService;
 import me.aloic.lazybotppplus.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -152,6 +151,18 @@ public class PlayerServiceImpl implements PlayerService
         }
         doUpdatesToDatabase(id, recentScores);
         return calcPlayerStats(id);
+    }
+
+    @Transactional
+    @Override
+    public void deleteScore(Long id) {
+        ScorePO existing = scoresMapper.selectById(id);
+        if (existing == null) {
+            throw new InvalidScoreException("[DELETE] score not existing");
+        }
+        scoreModMapper.deleteByScoreId(existing.getId());
+        scoreStatisticsMapper.deleteByScoreId(existing.getId());
+        scoresMapper.deleteById(existing.getId());
     }
 
 
@@ -294,8 +305,11 @@ public class PlayerServiceImpl implements PlayerService
         ScoreStatisticsPO statsPO = new ScoreStatisticsPO(bestScore.getStatistics(), bestScore.getId());
         List<ScoreModPO> modPOList = bestScore.getMods() == null ? List.of() :
                 bestScore.getMods().stream().map(mod -> new ScoreModPO(bestScore.getId(), mod.getAcronym())).toList();
-        ScorePO oldScore = scoresMapper.selectByPlayerIdAndBeatmapId(id, beatmapId);
+        List<ScorePO> oldScoreList = scoresMapper.selectByPlayerIdAndBeatmapId(id, beatmapId);
         BeatmapPO beatmapPO=new BeatmapPO(beatmapDTO,beatmapDTO.getBeatmapset());
+        ScorePO oldScore = oldScoreList.stream()
+                .max(Comparator.comparing(ScorePO::getPp))
+                .orElse(null);
         if (oldScore == null || oldScore.getPp() < bestPerformance.getPp()) {
             if (oldScore != null) {
                 scoreModMapper.deleteByScoreId(oldScore.getId());

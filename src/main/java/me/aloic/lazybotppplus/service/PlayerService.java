@@ -16,6 +16,9 @@ public interface PlayerService
     PlayerStats updatePlayerStats(Long id);
 
     @Transactional
+    void deleteScore(Long id);
+
+    @Transactional
     void updatePlayerStatsNoResult(Long id);
 
     ScorePerformanceDTO addScore(Long id, Integer beatmapId);

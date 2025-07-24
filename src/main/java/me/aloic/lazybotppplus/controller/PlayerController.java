@@ -42,6 +42,15 @@ public class PlayerController
         return ResultUtil.success(playerService.updatePlayerStats(id),"updated successful");
     }
 
+    //only for deleting corrupted scores, I wound say a big fuck you to ppy for making 'ranked' showed the wrong 'ranked status' of scores
+    @PostMapping("/delete")
+    public WebResult deleteTargetScore(@RequestParam(value = "id", required = true) Long id)
+    {
+        logger.info("handling /player/delete");
+        playerService.deleteScore(id);
+        return ResultUtil.success(null,"deleted successful");
+    }
+
 
     @PostMapping("/add")
     public WebResult getPlayerInfo(@RequestParam(value = "id", required = true) Long id,
