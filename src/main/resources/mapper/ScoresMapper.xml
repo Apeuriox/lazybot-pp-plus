@@ -85,25 +85,38 @@
     <select id="selectTopScoresByPlayerIdAndDimension" resultMap="BaseResultMap">
         SELECT *
         FROM (
-        SELECT
-        s.*,
-        ROW_NUMBER() OVER (
-        ORDER BY
-        <choose>
-            <when test="dimension == 'pp_speed'">s.pp_speed DESC</when>
-            <when test="dimension == 'pp_aim'">s.pp_aim DESC</when>
-            <when test="dimension == 'pp_jump'">s.pp_jump DESC</when>
-            <when test="dimension == 'pp_flow'">s.pp_flow DESC</when>
-            <when test="dimension == 'pp_stamina'">s.pp_stamina DESC</when>
-            <when test="dimension == 'pp_precision'">s.pp_precision DESC</when>
-            <when test="dimension == 'pp_accuracy'">s.pp_accuracy DESC</when>
-            <otherwise>s.pp DESC</otherwise>
-        </choose>
-        ) AS rn
-        FROM scores s
-        WHERE s.player_id = #{playerId}
-        ) ranked
-        WHERE rn &lt;= 200
+            SELECT
+            s.*,
+            ROW_NUMBER() OVER (
+            PARTITION BY s.beatmap_id
+            ORDER BY
+            <choose>
+                <when test="dimension == 'pp_speed'">s.pp_speed DESC</when>
+                <when test="dimension == 'pp_aim'">s.pp_aim DESC</when>
+                <when test="dimension == 'pp_jump'">s.pp_jump DESC</when>
+                <when test="dimension == 'pp_flow'">s.pp_flow DESC</when>
+                <when test="dimension == 'pp_stamina'">s.pp_stamina DESC</when>
+                <when test="dimension == 'pp_precision'">s.pp_precision DESC</when>
+                <when test="dimension == 'pp_accuracy'">s.pp_accuracy DESC</when>
+                <otherwise>s.pp DESC</otherwise>
+            </choose>
+            ) AS rn
+            FROM scores s
+                WHERE s.player_id = #{playerId}
+                ) ranked
+                WHERE rn = 1
+                ORDER BY
+                <choose>
+                    <when test="dimension == 'pp_speed'">pp_speed DESC</when>
+                    <when test="dimension == 'pp_aim'">pp_aim DESC</when>
+                    <when test="dimension == 'pp_jump'">pp_jump DESC</when>
+                    <when test="dimension == 'pp_flow'">pp_flow DESC</when>
+                    <when test="dimension == 'pp_stamina'">pp_stamina DESC</when>
+                    <when test="dimension == 'pp_precision'">pp_precision DESC</when>
+                    <when test="dimension == 'pp_accuracy'">pp_accuracy DESC</when>
+                    <otherwise>pp DESC</otherwise>
+                </choose>
+                LIMIT 200
     </select>
 
     <insert id="insertBatch" parameterType="list">
