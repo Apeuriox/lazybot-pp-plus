@@ -42,6 +42,12 @@
         FROM player_summary
         LIMIT #{limit} OFFSET #{offset}
     </select>
+    <update id="updateTimestamp" parameterType="list">
+        UPDATE player_summary
+        SET
+            last_updated = #{now}
+        WHERE id = #{id}
+    </update>
 
 
 </mapper>

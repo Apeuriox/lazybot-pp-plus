@@ -140,7 +140,7 @@ public class PlayerServiceImpl implements PlayerService
         if (playerResult != null) return playerResult;
 
         List<ScoreLazerDTO> recentScores =  apiRequestExecutor.execute(
-                URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50,OsuMode.Osu),
+                URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50, OsuMode.Osu),
                 HTTPTypeEnum.GET,
                 TokenMonitor.getToken(),
                 null,
@@ -163,6 +163,7 @@ public class PlayerServiceImpl implements PlayerService
         scoreModMapper.deleteByScoreId(existing.getId());
         scoreStatisticsMapper.deleteByScoreId(existing.getId());
         scoresMapper.deleteById(existing.getId());
+        logger.info("successfully deleted scoreId of: {}", id);
     }
 
 
@@ -187,6 +188,7 @@ public class PlayerServiceImpl implements PlayerService
             return;
         }
         doUpdatesToDatabase(id, recentScores);
+        playerSummaryMapper.updateTimestamp(id, LocalDateTime.now());
         logger.info("[UPDATE] Successfully updated player {}",id);
     }
 
@@ -258,7 +260,7 @@ public class PlayerServiceImpl implements PlayerService
     {
         PlayerSummaryPO player = playerSummaryMapper.selectById(id);
         if (player == null) {
-           throw new PlayerNotFoundException("[ADDSCORE] Initialize player first!");
+           throw new PlayerNotFoundException("Initialize player first!");
         }
 
         List<ScoreLazerDTO> scores = apiRequestExecutor.execute(

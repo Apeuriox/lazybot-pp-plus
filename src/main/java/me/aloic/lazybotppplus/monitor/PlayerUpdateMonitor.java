@@ -11,6 +11,7 @@ import me.aloic.lazybotppplus.service.PlayerService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -38,14 +39,20 @@ public class PlayerUpdateMonitor
         int totalUpdatedPlayers = 0;
         ExecutorService executor = Executors.newFixedThreadPool(25);
         List<CompletableFuture<Void>> futures = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
 //        Set<Long> failedPlayerIds = ConcurrentHashMap.newKeySet();
         while (true) {
-            List<PlayerSummaryPO> players = playerSummaryMapper.selectPlayersWithLimit(PAGE_SIZE*(currentPage-1), PAGE_SIZE);
+            List<PlayerSummaryPO> players = playerSummaryMapper.selectPlayersWithLimit(PAGE_SIZE * ( currentPage - 1 ), PAGE_SIZE);
             if (players == null || players.isEmpty()) {
                 break;
             }
             for (PlayerSummaryPO player : players) {
 //                if (failedPlayerIds.contains(player.getId())) continue;
+                if (player.getLastUpdated().isBefore(now.minusMonths(2)))
+                {
+                    log.info("PLayer is inactive, skipping...");
+                    continue;
+                }
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                     try {
                         playerService.updatePlayerStatsNoResult(player.getId());
