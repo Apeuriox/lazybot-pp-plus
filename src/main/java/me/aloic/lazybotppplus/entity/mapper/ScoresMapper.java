@@ -27,4 +27,10 @@ public interface ScoresMapper extends BaseMapper<ScorePO> {
             @Param("limit") Integer limit,
             @Param("offset") Integer offset
     );
+    List<ScorePerformanceDTO> selectBestScoresInSingleDimensionDistinct(
+            @Param("playerId") Long playerId,
+            @Param("dimension") String dimensionColumn,
+            @Param("limit") Integer limit,
+            @Param("offset") Integer offset
+    );
 }

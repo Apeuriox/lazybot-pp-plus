@@ -352,7 +352,7 @@ public class PlayerServiceImpl implements PlayerService
             throw new PlayerNotFoundException("No such player");
         }
         logger.info("[DIMENSION] Query player {}'s score on {}", id, dimension.getDbColumn());
-        List<ScorePerformanceDTO> scores = scoresMapper.selectBestScoresInSingleDimension(id, dimension.getDbColumn(), limit, offset);
+        List<ScorePerformanceDTO> scores = scoresMapper.selectBestScoresInSingleDimensionDistinct(id, dimension.getDbColumn(), limit, offset);
         if (scores == null || scores.isEmpty()) throw new InvalidScoreException("Failed to find" + id + "'s score on" + dimension.getDbColumn());
 
         List<Long> scoreIds = scores.stream().map(ScorePerformanceDTO::getScoreId).toList();

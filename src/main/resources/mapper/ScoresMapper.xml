@@ -163,6 +163,31 @@
         LIMIT #{limit}
         OFFSET #{offset}
     </select>
+    <select id="selectBestScoresInSingleDimensionDistinct" resultMap="ScoreDetailMap">
+        SELECT
+            t.score_id, t.accuracy, t.pp, t.combo, t.created_at,
+            t.pp_speed, t.pp_aim, t.pp_jump, t.pp_flow, t.pp_stamina, t.pp_precision, t.pp_accuracy,
+            p.id AS player_id, p.last_updated,
+            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum,
+            st.count_300, st.count_100, st.count_50, st.count_0, st.count_tick, st.count_end
+        FROM (
+                 SELECT
+                     *,
+                     id AS score_id,
+                     ROW_NUMBER() OVER (
+                         PARTITION BY beatmap_id
+                         ORDER BY ${dimension} DESC, created_at DESC
+                         ) as rn
+                 FROM scores
+                 WHERE player_id = #{playerId}
+             ) t
+                 LEFT JOIN player_summary p ON t.player_id = p.id
+                 LEFT JOIN beatmap b ON t.beatmap_id = b.id
+                 LEFT JOIN score_statistics st ON t.score_id = st.score_id
+        WHERE t.rn = 1
+        ORDER BY t.${dimension} DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
 
 
 </mapper>

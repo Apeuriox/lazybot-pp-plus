@@ -29,6 +29,7 @@ public class PlayerUpdateMonitor
 
     private static final int PAGE_SIZE = 100;
 
+    //upd
     @Scheduled(cron = "0 0 3 * * ?")
     public void schedulePlayerUpdate()
     {
