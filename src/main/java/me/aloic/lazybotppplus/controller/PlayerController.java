@@ -70,4 +70,5 @@ public class PlayerController
         logger.info("handling /player/dimension");
         return ResultUtil.success(playerService.bestScoresInSingleDimension(id, PerformanceDimension.getDimension(dimension),limit,offset),"dimension query successful");
     }
+
 }

@@ -26,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -300,6 +302,9 @@ public class PlayerServiceImpl implements PlayerService
         }
         return addScore(bestScore,bestPerformance,beatmapDTO,id,beatmapId);
     }
+
+
+
 
     private ScorePerformanceDTO addScore(ScoreLazerDTO bestScore, PPPlusPerformance bestPerformance,BeatmapDTO beatmapDTO,Long id, Integer beatmapId)
     {

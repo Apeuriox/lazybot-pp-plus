@@ -45,6 +45,7 @@
             <result column="version" property="version" />
             <result column="bpm" property="bpm" />
             <result column="checksum" property="checksum" />
+            <result column="sid" property="sid" />
         </association>
 
         <association property="statistics" javaType="me.aloic.lazybotppplus.entity.po.ScoreStatisticsPO">
@@ -65,7 +66,7 @@
         SELECT
             s.id AS score_id, s.accuracy, s.pp, s.combo, s.created_at,s.pp_speed, s.pp_aim, s.pp_jump, s.pp_flow, s.pp_stamina, s.pp_precision, s.pp_accuracy,
             p.id AS player_id, p.last_updated,
-            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum,
+            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum, b.sid,
             st.count_300, st.count_100, st.count_50, st.count_0, st.count_tick, st.count_end
         FROM scores s
                  LEFT JOIN player_summary p ON s.player_id = p.id
@@ -151,7 +152,7 @@
         SELECT
             s.id AS score_id, s.accuracy, s.pp, s.combo, s.created_at,s.pp_speed, s.pp_aim, s.pp_jump, s.pp_flow, s.pp_stamina, s.pp_precision, s.pp_accuracy,
             p.id AS player_id, p.last_updated,
-            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum,
+            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum, b.sid,
             st.count_300, st.count_100, st.count_50, st.count_0, st.count_tick, st.count_end
         FROM scores s
                  LEFT JOIN player_summary p ON s.player_id = p.id
@@ -168,7 +169,7 @@
             t.score_id, t.accuracy, t.pp, t.combo, t.created_at,
             t.pp_speed, t.pp_aim, t.pp_jump, t.pp_flow, t.pp_stamina, t.pp_precision, t.pp_accuracy,
             p.id AS player_id, p.last_updated,
-            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum,
+            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum, b.sid,
             st.count_300, st.count_100, st.count_50, st.count_0, st.count_tick, st.count_end
         FROM (
                  SELECT
@@ -188,6 +189,11 @@
         ORDER BY t.${dimension} DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
+
+    <select id="selectCount" resultType="int">
+        SELECT COUNT(*) FROM scores
+    </select>
+
 
 
 </mapper>

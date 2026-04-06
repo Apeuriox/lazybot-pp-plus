@@ -33,4 +33,5 @@ public interface ScoresMapper extends BaseMapper<ScorePO> {
             @Param("limit") Integer limit,
             @Param("offset") Integer offset
     );
+    Integer selectCount();
 }
