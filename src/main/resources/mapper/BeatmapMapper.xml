@@ -39,7 +39,7 @@
         SELECT *
         FROM beatmap
         WHERE sid IS NULL
-        LIMIT #{limit} OFFSET #{offset}
+        LIMIT #{limit}
     </select>
 
     <update id="updateBeatmapSidById">
@@ -53,5 +53,34 @@
     <select id="selectCount" resultType="int">
         SELECT COUNT(*) FROM beatmap
     </select>
+
+    <insert id="batchUpdateSid" parameterType="list">
+        UPDATE beatmap (
+        id, title, artist, version, bpm, checksum, sid
+        )
+        VALUES
+        <foreach collection="list" item="map" separator=",">
+            (
+            #{map.id}, #{map.title}, #{map.artist},
+            #{map.version}, #{map.bpm}, #{map.checksum}, #{map.sid}
+            )
+        </foreach>
+    </insert>
+
+    <update id="batchUpdateButOnlySid">
+        UPDATE beatmap
+        SET
+        sid = CASE
+        <foreach collection="list" item="item">
+            <if test="item.sid != null">
+                    WHEN id = #{item.id} THEN #{item.sid}
+            </if>
+        </foreach>
+        END
+        WHERE id IN
+        <foreach collection="list" item="item" open="(" separator="," close=")">
+            #{item.id}
+        </foreach>
+    </update>
 
 </mapper>

@@ -21,6 +21,7 @@ public class BeatmapController
 
     @Resource
     private BeatmapService beatmapService;
+
     private static final Logger logger = LoggerFactory.getLogger(BeatmapController.class);
 
     @GetMapping("/updateAll")
