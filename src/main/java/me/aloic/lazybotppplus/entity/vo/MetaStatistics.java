@@ -10,6 +10,8 @@ import lombok.NoArgsConstructor;
 public class MetaStatistics
 {
     private Integer totalPlayers;
+    private Integer lastDayReallyUpdatedPlayer;
+    private Integer activePlayer;
     private Integer totalRecordedScores;
     private Integer totalBeatmaps;
 }

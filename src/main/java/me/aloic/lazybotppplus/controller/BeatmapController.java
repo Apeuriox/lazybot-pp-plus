@@ -29,6 +29,6 @@ public class BeatmapController
     {
         logger.info("handling /beatmap/updateAll");
         beatmapService.updatedBeatmapCache();
-        return ResultUtil.success(null,"dimension query successful");
+        return ResultUtil.success(null,"beatmap updated successful");
     }
 }

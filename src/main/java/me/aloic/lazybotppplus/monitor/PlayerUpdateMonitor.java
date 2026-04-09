@@ -32,7 +32,8 @@ public class PlayerUpdateMonitor
     private static final int PAGE_SIZE = 100;
     @Getter
     private final LongAdder countOfUpdatedPlayerLastTime=new LongAdder();
-    RateLimiter limiter = new RateLimiter(18.0);
+    RateLimiter limiter = new RateLimiter(15.0);
+
     @Scheduled(cron = "0 0 3 * * ?")
     public void schedulePlayerUpdate()
     {

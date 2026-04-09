@@ -17,4 +17,6 @@ public interface PlayerSummaryMapper extends BaseMapper<PlayerSummaryPO>
     List<PlayerSummaryPO> selectAll();
     List<PlayerSummaryPO> selectPlayersWithLimit(@Param("offset") int offset, @Param("limit") int limit);
     Integer selectPlayerCount();
+    Integer selectPlayerCountWithTime(LocalDateTime time);
+    PlayerSummaryPO selectPlayerWithTime(@Param("id") Long id, LocalDateTime time);
 }

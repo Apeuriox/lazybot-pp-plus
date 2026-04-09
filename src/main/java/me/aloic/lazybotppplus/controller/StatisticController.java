@@ -43,6 +43,7 @@ public class StatisticController
     public WebResult getHowManyPeopleReallyUpdatedLastTime()
     {
         logger.info("handling /stats/player/updated");
-        return ResultUtil.success(playerUpdateMonitor.getCountOfUpdatedPlayerLastTime().sum(),"get successful");
+        return ResultUtil.success(playerUpdateMonitor.getCountOfUpdatedPlayerLastTime().sum(),"last time player update count get successful");
     }
+
 }

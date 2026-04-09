@@ -60,6 +60,13 @@ public class PlayerController
         return ResultUtil.success(playerService.addScore(id,beatmapId),"added successful");
     }
 
+    @GetMapping("/check")
+    public WebResult isGuyCanTriggerAutoUpdate(@RequestParam(value = "id", required = true) Long id)
+    {
+        logger.info("handling /player/check");
+        return ResultUtil.success(playerService.isThisGuyMeetsTheAutoUpdateRequirement(id),"check successful");
+    }
+
 
     @GetMapping("/dimension")
     public WebResult getPlayerDetailedSkillDimension(@RequestParam(value = "id", required = true) Long id,

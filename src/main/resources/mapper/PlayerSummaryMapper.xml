@@ -37,11 +37,28 @@
         from player_summary
     </select>
 
+
+    <select id="selectPlayerCountWithTime" resultType="java.lang.Integer">
+        select COUNT(*)
+        from player_summary
+        WHERE last_updated > #{time}
+    </select>
+
+    <select id="selectPlayerWithTime" resultType="me.aloic.lazybotppplus.entity.po.PlayerSummaryPO">
+        select <include refid="Base_Column_List"/>
+        from player_summary
+        WHERE
+            id = #{id}
+          AND
+            last_updated > #{time}
+    </select>
+
     <select id="selectPlayersWithLimit" resultType="me.aloic.lazybotppplus.entity.po.PlayerSummaryPO">
         SELECT <include refid="Base_Column_List"/>
         FROM player_summary
         LIMIT #{limit} OFFSET #{offset}
     </select>
+
     <update id="updateTimestamp" parameterType="list">
         UPDATE player_summary
         SET

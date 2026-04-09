@@ -14,6 +14,7 @@ import me.aloic.lazybotppplus.enums.HTTPTypeEnum;
 import me.aloic.lazybotppplus.enums.OsuMode;
 import me.aloic.lazybotppplus.enums.PerformanceDimension;
 import me.aloic.lazybotppplus.exception.InvalidScoreException;
+import me.aloic.lazybotppplus.exception.LazybotRuntimeException;
 import me.aloic.lazybotppplus.exception.PlayerNotFoundException;
 import me.aloic.lazybotppplus.monitor.TokenMonitor;
 import me.aloic.lazybotppplus.service.PlayerService;
@@ -26,8 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -175,7 +174,7 @@ public class PlayerServiceImpl implements PlayerService
         PlayerStats playerResult=checkInitializationStatus(id);
         if (playerResult != null) {
             logger.warn("[UPDATE] Player {} not existing, skipping",id);
-            return;
+            throw new LazybotRuntimeException("Player not existing");
         }
         List<ScoreLazerDTO> recentScores =  apiRequestExecutor.execute(
                 URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50,OsuMode.Osu),
@@ -187,7 +186,7 @@ public class PlayerServiceImpl implements PlayerService
 
         if(recentScores==null|| recentScores.isEmpty()) {
             logger.warn("[UPDATE] Player {} do not have recently played scores, skipping",id);
-            return;
+            throw new LazybotRuntimeException("Player do not  have recently played scores");
         }
         doUpdatesToDatabase(id, recentScores);
         playerSummaryMapper.updateTimestamp(id, LocalDateTime.now());
@@ -349,6 +348,14 @@ public class PlayerServiceImpl implements PlayerService
         return dto;
     }
 
+
+    @Override
+    public Boolean isThisGuyMeetsTheAutoUpdateRequirement(Long id)
+    {
+        LocalDateTime previous2Months = LocalDateTime.now().minusMonths(2);
+        return playerSummaryMapper.selectPlayerWithTime(id, previous2Months)!=null;
+    }
+
     @Override
     public List<ScorePerformanceDTO> bestScoresInSingleDimension(Long id, PerformanceDimension dimension, Integer limit, Integer offset)
     {
@@ -440,5 +447,7 @@ public class PlayerServiceImpl implements PlayerService
 
         return null;
     }
+
+
 
 }

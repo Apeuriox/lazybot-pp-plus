@@ -25,6 +25,8 @@ public interface PlayerService
 
     ScorePerformanceDTO getScorePerformance(Long id);
 
+    Boolean isThisGuyMeetsTheAutoUpdateRequirement(Long id);
+
     List<ScorePerformanceDTO> bestScoresInSingleDimension(Long id, PerformanceDimension dimension, Integer limit, Integer offset);
 
 }
