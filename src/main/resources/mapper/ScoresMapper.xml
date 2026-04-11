@@ -45,6 +45,7 @@
             <result column="version" property="version" />
             <result column="bpm" property="bpm" />
             <result column="checksum" property="checksum" />
+            <result column="sid" property="sid" />
         </association>
 
         <association property="statistics" javaType="me.aloic.lazybotppplus.entity.po.ScoreStatisticsPO">
@@ -65,7 +66,7 @@
         SELECT
             s.id AS score_id, s.accuracy, s.pp, s.combo, s.created_at,s.pp_speed, s.pp_aim, s.pp_jump, s.pp_flow, s.pp_stamina, s.pp_precision, s.pp_accuracy,
             p.id AS player_id, p.last_updated,
-            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum,
+            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum, b.sid,
             st.count_300, st.count_100, st.count_50, st.count_0, st.count_tick, st.count_end
         FROM scores s
                  LEFT JOIN player_summary p ON s.player_id = p.id
@@ -85,25 +86,38 @@
     <select id="selectTopScoresByPlayerIdAndDimension" resultMap="BaseResultMap">
         SELECT *
         FROM (
-        SELECT
-        s.*,
-        ROW_NUMBER() OVER (
-        ORDER BY
-        <choose>
-            <when test="dimension == 'pp_speed'">s.pp_speed DESC</when>
-            <when test="dimension == 'pp_aim'">s.pp_aim DESC</when>
-            <when test="dimension == 'pp_jump'">s.pp_jump DESC</when>
-            <when test="dimension == 'pp_flow'">s.pp_flow DESC</when>
-            <when test="dimension == 'pp_stamina'">s.pp_stamina DESC</when>
-            <when test="dimension == 'pp_precision'">s.pp_precision DESC</when>
-            <when test="dimension == 'pp_accuracy'">s.pp_accuracy DESC</when>
-            <otherwise>s.pp DESC</otherwise>
-        </choose>
-        ) AS rn
-        FROM scores s
-        WHERE s.player_id = #{playerId}
-        ) ranked
-        WHERE rn &lt;= 200
+            SELECT
+            s.*,
+            ROW_NUMBER() OVER (
+            PARTITION BY s.beatmap_id
+            ORDER BY
+            <choose>
+                <when test="dimension == 'pp_speed'">s.pp_speed DESC</when>
+                <when test="dimension == 'pp_aim'">s.pp_aim DESC</when>
+                <when test="dimension == 'pp_jump'">s.pp_jump DESC</when>
+                <when test="dimension == 'pp_flow'">s.pp_flow DESC</when>
+                <when test="dimension == 'pp_stamina'">s.pp_stamina DESC</when>
+                <when test="dimension == 'pp_precision'">s.pp_precision DESC</when>
+                <when test="dimension == 'pp_accuracy'">s.pp_accuracy DESC</when>
+                <otherwise>s.pp DESC</otherwise>
+            </choose>
+            ) AS rn
+            FROM scores s
+                WHERE s.player_id = #{playerId}
+                ) ranked
+                WHERE rn = 1
+                ORDER BY
+                <choose>
+                    <when test="dimension == 'pp_speed'">pp_speed DESC</when>
+                    <when test="dimension == 'pp_aim'">pp_aim DESC</when>
+                    <when test="dimension == 'pp_jump'">pp_jump DESC</when>
+                    <when test="dimension == 'pp_flow'">pp_flow DESC</when>
+                    <when test="dimension == 'pp_stamina'">pp_stamina DESC</when>
+                    <when test="dimension == 'pp_precision'">pp_precision DESC</when>
+                    <when test="dimension == 'pp_accuracy'">pp_accuracy DESC</when>
+                    <otherwise>pp DESC</otherwise>
+                </choose>
+                LIMIT 200
     </select>
 
     <insert id="insertBatch" parameterType="list">
@@ -138,7 +152,7 @@
         SELECT
             s.id AS score_id, s.accuracy, s.pp, s.combo, s.created_at,s.pp_speed, s.pp_aim, s.pp_jump, s.pp_flow, s.pp_stamina, s.pp_precision, s.pp_accuracy,
             p.id AS player_id, p.last_updated,
-            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum,
+            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum, b.sid,
             st.count_300, st.count_100, st.count_50, st.count_0, st.count_tick, st.count_end
         FROM scores s
                  LEFT JOIN player_summary p ON s.player_id = p.id
@@ -150,6 +164,36 @@
         LIMIT #{limit}
         OFFSET #{offset}
     </select>
+    <select id="selectBestScoresInSingleDimensionDistinct" resultMap="ScoreDetailMap">
+        SELECT
+            t.score_id, t.accuracy, t.pp, t.combo, t.created_at,
+            t.pp_speed, t.pp_aim, t.pp_jump, t.pp_flow, t.pp_stamina, t.pp_precision, t.pp_accuracy,
+            p.id AS player_id, p.last_updated,
+            b.id AS beatmap_id, b.title, b.artist, b.version, b.bpm, b.checksum, b.sid,
+            st.count_300, st.count_100, st.count_50, st.count_0, st.count_tick, st.count_end
+        FROM (
+                 SELECT
+                     *,
+                     id AS score_id,
+                     ROW_NUMBER() OVER (
+                         PARTITION BY beatmap_id
+                         ORDER BY ${dimension} DESC, created_at DESC
+                         ) as rn
+                 FROM scores
+                 WHERE player_id = #{playerId}
+             ) t
+                 LEFT JOIN player_summary p ON t.player_id = p.id
+                 LEFT JOIN beatmap b ON t.beatmap_id = b.id
+                 LEFT JOIN score_statistics st ON t.score_id = st.score_id
+        WHERE t.rn = 1
+        ORDER BY t.${dimension} DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="selectCount" resultType="int">
+        SELECT COUNT(*) FROM scores
+    </select>
+
 
 
 </mapper>

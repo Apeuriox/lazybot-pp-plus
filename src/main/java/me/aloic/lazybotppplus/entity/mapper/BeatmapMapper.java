@@ -12,4 +12,9 @@ public interface BeatmapMapper extends BaseMapper<BeatmapPO>
 {
     void insertBatchUpsert(List<BeatmapPO> map);
     void insertBatchIgnoreDuplicate(List<BeatmapPO> map);
+    List<BeatmapPO> selectAllNullSidMaps(Integer limit);
+    void updateBeatmapSidById(Long id, Integer sid);
+    Integer selectCount();
+
+    void batchUpdateButOnlySid(List<BeatmapPO> list);
 }

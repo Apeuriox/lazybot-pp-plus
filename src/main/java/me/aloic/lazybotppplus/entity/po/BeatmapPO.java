@@ -16,6 +16,7 @@ import me.aloic.lazybotppplus.entity.dto.osu.beatmap.BeatmapsetDTO;
 public class BeatmapPO {
     @TableId(type = IdType.INPUT)
     private Long id;
+    private Long sid;
 
     private String title;
     private String artist;
@@ -29,6 +30,7 @@ public class BeatmapPO {
         this.artist=beatmapset.getArtist();
         this.version=beatmap.getVersion();
         this.bpm=beatmap.getBpm();
+        this.sid= beatmapset.getId();
         this.checksum=beatmap.getChecksum();
     }
 }

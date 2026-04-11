@@ -14,13 +14,13 @@ import me.aloic.lazybotppplus.enums.HTTPTypeEnum;
 import me.aloic.lazybotppplus.enums.OsuMode;
 import me.aloic.lazybotppplus.enums.PerformanceDimension;
 import me.aloic.lazybotppplus.exception.InvalidScoreException;
+import me.aloic.lazybotppplus.exception.LazybotRuntimeException;
 import me.aloic.lazybotppplus.exception.PlayerNotFoundException;
 import me.aloic.lazybotppplus.monitor.TokenMonitor;
 import me.aloic.lazybotppplus.service.PlayerService;
 import me.aloic.lazybotppplus.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -141,7 +141,7 @@ public class PlayerServiceImpl implements PlayerService
         if (playerResult != null) return playerResult;
 
         List<ScoreLazerDTO> recentScores =  apiRequestExecutor.execute(
-                URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50,OsuMode.Osu),
+                URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50, OsuMode.Osu),
                 HTTPTypeEnum.GET,
                 TokenMonitor.getToken(),
                 null,
@@ -154,6 +154,19 @@ public class PlayerServiceImpl implements PlayerService
         return calcPlayerStats(id);
     }
 
+    @Transactional
+    @Override
+    public void deleteScore(Long id) {
+        ScorePO existing = scoresMapper.selectById(id);
+        if (existing == null) {
+            throw new InvalidScoreException("[DELETE] score not existing");
+        }
+        scoreModMapper.deleteByScoreId(existing.getId());
+        scoreStatisticsMapper.deleteByScoreId(existing.getId());
+        scoresMapper.deleteById(existing.getId());
+        logger.info("successfully deleted scoreId of: {}", id);
+    }
+
 
     @Transactional
     @Override
@@ -161,7 +174,7 @@ public class PlayerServiceImpl implements PlayerService
         PlayerStats playerResult=checkInitializationStatus(id);
         if (playerResult != null) {
             logger.warn("[UPDATE] Player {} not existing, skipping",id);
-            return;
+            throw new LazybotRuntimeException("Player not existing");
         }
         List<ScoreLazerDTO> recentScores =  apiRequestExecutor.execute(
                 URLBuildUtil.buildURLOfRecentCommand(String.valueOf(id),1,50,OsuMode.Osu),
@@ -173,9 +186,10 @@ public class PlayerServiceImpl implements PlayerService
 
         if(recentScores==null|| recentScores.isEmpty()) {
             logger.warn("[UPDATE] Player {} do not have recently played scores, skipping",id);
-            return;
+            throw new LazybotRuntimeException("Player do not  have recently played scores");
         }
         doUpdatesToDatabase(id, recentScores);
+        playerSummaryMapper.updateTimestamp(id, LocalDateTime.now());
         logger.info("[UPDATE] Successfully updated player {}",id);
     }
 
@@ -194,7 +208,11 @@ public class PlayerServiceImpl implements PlayerService
         Map<Long, ScorePO> existingScores = scoresMapper
                 .selectBestScoresByPlayerAndBeatmapIds(id, beatmapIds)
                 .stream()
-                .collect(Collectors.toMap(ScorePO::getBeatmapId, Function.identity()));
+                .collect(Collectors.toMap(
+                        ScorePO::getBeatmapId,
+                        Function.identity(),
+                        (existing, incoming) -> existing.getPp() >= incoming.getPp() ? existing : incoming
+                ));
 
         List<ScorePO> insertList = new ArrayList<>();
         List<ScoreModPO> insertMods = new ArrayList<>();
@@ -209,9 +227,9 @@ public class PlayerServiceImpl implements PlayerService
                 ScorePO existing = existingScores.get(beatmapId);
                 if (existing == null || newScore.getPp() > existing.getPp()) {
                     if (existing != null) {
-                        scoresMapper.deleteById(existing.getId());
                         scoreModMapper.deleteByScoreId(existing.getId());
                         scoreStatisticsMapper.deleteByScoreId(existing.getId());
+                        scoresMapper.deleteById(existing.getId());
                     }
                     insertBeatmaps.add(new BeatmapPO(dto.getBeatmap(),dto.getBeatmapset()));
                     insertList.add(newScore);
@@ -236,13 +254,14 @@ public class PlayerServiceImpl implements PlayerService
         if (!insertMods.isEmpty()) scoreModMapper.insertBatch(insertMods);
         if (!insertStats.isEmpty()) scoreStatisticsMapper.insertBatch(insertStats);
     }
+
     @Transactional
     @Override
     public ScorePerformanceDTO addScore(Long id, Integer beatmapId)
     {
         PlayerSummaryPO player = playerSummaryMapper.selectById(id);
         if (player == null) {
-           throw new PlayerNotFoundException("[ADDSCORE] Initialize player first!");
+           throw new PlayerNotFoundException("Initialize player first!");
         }
 
         List<ScoreLazerDTO> scores = apiRequestExecutor.execute(
@@ -283,14 +302,20 @@ public class PlayerServiceImpl implements PlayerService
         return addScore(bestScore,bestPerformance,beatmapDTO,id,beatmapId);
     }
 
+
+
+
     private ScorePerformanceDTO addScore(ScoreLazerDTO bestScore, PPPlusPerformance bestPerformance,BeatmapDTO beatmapDTO,Long id, Integer beatmapId)
     {
         ScorePO bestScorePO = new ScorePO(bestScore, bestPerformance);
         ScoreStatisticsPO statsPO = new ScoreStatisticsPO(bestScore.getStatistics(), bestScore.getId());
         List<ScoreModPO> modPOList = bestScore.getMods() == null ? List.of() :
                 bestScore.getMods().stream().map(mod -> new ScoreModPO(bestScore.getId(), mod.getAcronym())).toList();
-        ScorePO oldScore = scoresMapper.selectByPlayerIdAndBeatmapId(id, beatmapId);
+        List<ScorePO> oldScoreList = scoresMapper.selectByPlayerIdAndBeatmapId(id, beatmapId);
         BeatmapPO beatmapPO=new BeatmapPO(beatmapDTO,beatmapDTO.getBeatmapset());
+        ScorePO oldScore = oldScoreList.stream()
+                .max(Comparator.comparing(ScorePO::getPp))
+                .orElse(null);
         if (oldScore == null || oldScore.getPp() < bestPerformance.getPp()) {
             if (oldScore != null) {
                 scoreModMapper.deleteByScoreId(oldScore.getId());
@@ -323,6 +348,14 @@ public class PlayerServiceImpl implements PlayerService
         return dto;
     }
 
+
+    @Override
+    public Boolean isThisGuyMeetsTheAutoUpdateRequirement(Long id)
+    {
+        LocalDateTime previous2Months = LocalDateTime.now().minusMonths(2);
+        return playerSummaryMapper.selectPlayerWithTime(id, previous2Months)!=null;
+    }
+
     @Override
     public List<ScorePerformanceDTO> bestScoresInSingleDimension(Long id, PerformanceDimension dimension, Integer limit, Integer offset)
     {
@@ -331,7 +364,7 @@ public class PlayerServiceImpl implements PlayerService
             throw new PlayerNotFoundException("No such player");
         }
         logger.info("[DIMENSION] Query player {}'s score on {}", id, dimension.getDbColumn());
-        List<ScorePerformanceDTO> scores = scoresMapper.selectBestScoresInSingleDimension(id, dimension.getDbColumn(), limit, offset);
+        List<ScorePerformanceDTO> scores = scoresMapper.selectBestScoresInSingleDimensionDistinct(id, dimension.getDbColumn(), limit, offset);
         if (scores == null || scores.isEmpty()) throw new InvalidScoreException("Failed to find" + id + "'s score on" + dimension.getDbColumn());
 
         List<Long> scoreIds = scores.stream().map(ScorePerformanceDTO::getScoreId).toList();
@@ -414,5 +447,7 @@ public class PlayerServiceImpl implements PlayerService
 
         return null;
     }
+
+
 
 }

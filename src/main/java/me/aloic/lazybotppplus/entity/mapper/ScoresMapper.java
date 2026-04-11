@@ -18,7 +18,7 @@ public interface ScoresMapper extends BaseMapper<ScorePO> {
 
     void insertBatch(List<ScorePO> scores);
     void deleteById(Long id);
-    ScorePO selectByPlayerIdAndBeatmapId(Long playerId, Integer beatmapId);
+    List<ScorePO> selectByPlayerIdAndBeatmapId(Long playerId, Integer beatmapId);
     List<ScorePO> selectBestScoresByPlayerAndBeatmapIds(@Param("playerId") Long playerId, @Param("beatmapIds") Set<Long> beatmapIds);
 
     List<ScorePerformanceDTO> selectBestScoresInSingleDimension(
@@ -27,4 +27,11 @@ public interface ScoresMapper extends BaseMapper<ScorePO> {
             @Param("limit") Integer limit,
             @Param("offset") Integer offset
     );
+    List<ScorePerformanceDTO> selectBestScoresInSingleDimensionDistinct(
+            @Param("playerId") Long playerId,
+            @Param("dimension") String dimensionColumn,
+            @Param("limit") Integer limit,
+            @Param("offset") Integer offset
+    );
+    Integer selectCount();
 }

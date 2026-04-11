@@ -16,11 +16,16 @@ public interface PlayerService
     PlayerStats updatePlayerStats(Long id);
 
     @Transactional
+    void deleteScore(Long id);
+
+    @Transactional
     void updatePlayerStatsNoResult(Long id);
 
     ScorePerformanceDTO addScore(Long id, Integer beatmapId);
 
     ScorePerformanceDTO getScorePerformance(Long id);
+
+    Boolean isThisGuyMeetsTheAutoUpdateRequirement(Long id);
 
     List<ScorePerformanceDTO> bestScoresInSingleDimension(Long id, PerformanceDimension dimension, Integer limit, Integer offset);
 

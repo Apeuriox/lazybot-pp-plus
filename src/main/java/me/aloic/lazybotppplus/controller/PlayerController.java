@@ -42,6 +42,15 @@ public class PlayerController
         return ResultUtil.success(playerService.updatePlayerStats(id),"updated successful");
     }
 
+    //only for deleting corrupted scores, I wound say a big fuck you to ppy for making 'ranked' showed the wrong 'ranked status' of scores
+    @PostMapping("/delete")
+    public WebResult deleteTargetScore(@RequestParam(value = "id", required = true) Long id)
+    {
+        logger.info("handling /player/delete");
+        playerService.deleteScore(id);
+        return ResultUtil.success(null,"deleted successful");
+    }
+
 
     @PostMapping("/add")
     public WebResult getPlayerInfo(@RequestParam(value = "id", required = true) Long id,
@@ -49,6 +58,13 @@ public class PlayerController
     {
         logger.info("handling /player/add");
         return ResultUtil.success(playerService.addScore(id,beatmapId),"added successful");
+    }
+
+    @GetMapping("/check")
+    public WebResult isGuyCanTriggerAutoUpdate(@RequestParam(value = "id", required = true) Long id)
+    {
+        logger.info("handling /player/check");
+        return ResultUtil.success(playerService.isThisGuyMeetsTheAutoUpdateRequirement(id),"check successful");
     }
 
 
@@ -61,4 +77,5 @@ public class PlayerController
         logger.info("handling /player/dimension");
         return ResultUtil.success(playerService.bestScoresInSingleDimension(id, PerformanceDimension.getDimension(dimension),limit,offset),"dimension query successful");
     }
+
 }
