@@ -113,12 +113,13 @@ public class ApiRequestStarter
             case HTTPTypeEnum.POST ->
             {
                 HttpRequest request = HttpUtil.createPost(url.toString());
-                HttpResponse response = request.addHeaders(headers).body(JSON.toJSONString(bodies)).executeAsync();
-                String resp = response.body();
-                T res = JSON.parseObject(resp, resultClass);
-                response.close();
-                logger.info("POST {} successfully with code of {}", this.getUrl(), response.getStatus());
-                return res;
+                try (HttpResponse response = request.addHeaders(headers).body(JSON.toJSONString(bodies)).executeAsync())
+                {
+                    String resp = response.body();
+                    T res = JSON.parseObject(resp, resultClass);
+                    logger.info("POST {} successfully with code of {}", this.getUrl(), response.getStatus());
+                    return res;
+                }
             }
             case HTTPTypeEnum.GET ->
             {
@@ -126,12 +127,10 @@ public class ApiRequestStarter
                 int currentAttempt = 0;
                 while (currentAttempt < reties)
                 {
-                    try
+                    try (HttpResponse response = HttpUtil.createGet(url.toString()).addHeaders(headers).executeAsync())
                     {
-                        HttpResponse response = HttpUtil.createGet(url.toString()).addHeaders(headers).executeAsync();
                         String resp = response.body();
                         T res = JSON.parseObject(resp, resultClass);
-                        response.close();
                         logger.info("GET {} successfully with code of {}", this.getUrl(), response.getStatus());
                         return res;
                     } catch (Exception e)
@@ -156,7 +155,13 @@ public class ApiRequestStarter
                     }
                 }
             }
-            case HTTPTypeEnum.DELETE -> HttpUtil.createRequest(Method.DELETE, url.toString()).addHeaders(headers).executeAsync().body();
+            case HTTPTypeEnum.DELETE ->
+            {
+                try (HttpResponse response = HttpUtil.createRequest(Method.DELETE, url.toString()).addHeaders(headers).executeAsync())
+                {
+                    response.body();
+                }
+            }
         }
         return null;
     }
@@ -166,46 +171,57 @@ public class ApiRequestStarter
         switch (type)
         {
             case HTTPTypeEnum.POST ->{
-                String resp = HttpUtil.createPost(url.toString()).addHeaders(headers).body(JSON.toJSONString(bodies)).execute().body();
-//            System.out.println("api request resp: " + resp);
-                return JSON.parseArray(resp, resultClass);
+                try (HttpResponse response = HttpUtil.createPost(url.toString()).addHeaders(headers).body(JSON.toJSONString(bodies)).execute())
+                {
+                    String resp = response.body();
+                    return JSON.parseArray(resp, resultClass);
+                }
             }
             case HTTPTypeEnum.GET ->{
                 int reties=3;
                 int currentAttempt = 0;
                 while (currentAttempt < reties) {
-                    try {
-                        HttpResponse response = HttpUtil.createGet(url.toString()).addHeaders(headers).execute();
-                        if(response.getStatus()==404) {
+                    try (HttpResponse response = HttpUtil.createGet(url.toString()).addHeaders(headers).execute())
+                    {
+                        if (response.getStatus() == 404)
+                        {
                             logger.warn("<list> GET {} NOT FOUND, skipping", this.getUrl());
                             return new ArrayList<>();
                         }
                         List<T> res = JSON.parseArray(response.body(), resultClass);
-                        response.close();
                         logger.info("<list> GET {} successfully with code of {}", this.getUrl(), response.getStatus());
                         return res;
-                    }
-                    catch (Exception e) {
+                    } catch (Exception e)
+                    {
                         logger.warn("<list> GET {} failed", this.getUrl());
                         currentAttempt++;
-                        if (currentAttempt < reties) {
-                            try {
+                        if (currentAttempt < reties)
+                        {
+                            try
+                            {
                                 TimeUnit.SECONDS.sleep(1);
-                            }
-                            catch (InterruptedException ie) {
+                            } catch (InterruptedException ie)
+                            {
                                 Thread.currentThread().interrupt();
                                 throw new LazybotRuntimeException("Thread interrupted while retrying", ie);
                             }
                         }
-                        else {
+                        else
+                        {
                             logger.error(e.getMessage());
-                            throw new LazybotRuntimeException("HTTP请求重试" +reties +"次后仍失败:" + e.getMessage());
+                            throw new LazybotRuntimeException("HTTP请求重试" + reties + "次后仍失败:" + e.getMessage());
                         }
                     }
                 }
                 return null;
             }
-            case HTTPTypeEnum.DELETE ->  HttpUtil.createRequest(Method.DELETE, url.toString()).addHeaders(headers).execute().body();
+            case HTTPTypeEnum.DELETE ->
+            {
+                try (HttpResponse response = HttpUtil.createRequest(Method.DELETE, url.toString()).addHeaders(headers).execute())
+                {
+                    response.body();
+                }
+            }
         }
         return new ArrayList<>();
     }

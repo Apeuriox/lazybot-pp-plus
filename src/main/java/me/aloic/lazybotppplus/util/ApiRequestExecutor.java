@@ -53,36 +53,43 @@ public class ApiRequestExecutor
                          TypeReference<T> typeRef)  {
 
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-            try {
-                HttpRequest request = createRequest(type, url, token, body);
-                HttpResponse response = request.executeAsync();
+            HttpRequest request = createRequest(type, url, token, body);
+            try (HttpResponse response = request.executeAsync())
+            {
                 int status = response.getStatus();
                 String respBody = response.body();
-                if (status == 401) {
+                if (status == 401)
+                {
                     logger.warn("Token expired. Refreshing...");
                     tokenMonitor.refreshClientToken();
                     TimeUnit.SECONDS.sleep(10);
                     continue;
                 }
-                if (status >= 200 && status < 300) {
-                    response.close();
+                if (status >= 200 && status < 300)
+                {
                     logger.info("HTTP request successful: {}", url);
                     if (clazz != null) return JSON.parseObject(respBody, clazz);
                     else if (typeRef != null) return JSON.parseObject(respBody, typeRef.getType());
-                    else throw new IllegalArgumentException("Serialization failed! must provide either Class<T> or TypeReference<T>");
-
-                } else {
+                    else
+                        throw new IllegalArgumentException("Serialization failed! must provide either Class<T> or TypeReference<T>");
+                }
+                else
+                {
                     logger.warn("HTTP request failed: {}, status: {}, content: {}", url, status, respBody);
                     throw new LazybotRuntimeException("HTTP request failed, Status code: " + status + ", Content：" + respBody);
                 }
-            } catch (Exception e) {
+            } catch (Exception e)
+            {
                 logger.error("Request failed  {} times: {}", attempt, e.getMessage());
-                if (attempt == MAX_RETRIES) {
+                if (attempt == MAX_RETRIES)
+                {
                     throw new LazybotRuntimeException("HTTP request failed after" + MAX_RETRIES + " retries: " + e.getMessage(), e);
                 }
-                try {
+                try
+                {
                     TimeUnit.SECONDS.sleep(1);
-                } catch (InterruptedException interrupted) {
+                } catch (InterruptedException interrupted)
+                {
                     Thread.currentThread().interrupt();
                     throw new LazybotRuntimeException("Request has been interrupted", interrupted);
                 }

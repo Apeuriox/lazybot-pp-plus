@@ -51,6 +51,7 @@ public class AssertDownloadUtil
                 fileDownloadJavaHttpClient(targetUrl, desiredLocalPath);
                 delayQueue.offer(new DownloadTask(ONE_MINUTE_IN_MS));
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 logger.error(e.getMessage());
                 throw new LazybotRuntimeException("Download thread was interrupted: " +e.getMessage());
             }
@@ -66,6 +67,7 @@ public class AssertDownloadUtil
                 fileDownloadJavaHttpClient(targetUrl, desiredLocalPath);
                 delayQueue.offer(new DownloadTask(ONE_MINUTE_IN_MS));
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 logger.error("{} : {}",e.getClass(), e.getMessage());
             }
             return null;
@@ -88,6 +90,7 @@ public class AssertDownloadUtil
         catch (Exception e)
         {
             logger.warn("Beatmap download failed: {}", e.getMessage());
+            return false;
         }
 
         return true;
@@ -96,8 +99,12 @@ public class AssertDownloadUtil
 
     public static Path beatmapPath(Integer bid,Boolean override)
     {
-        beatmapDownload(bid,override);
-        return Paths.get(ResourceMonitor.getResourcePath().toAbsolutePath()+ "/" +bid +".osu");
+        boolean success = beatmapDownload(bid, override);
+        Path path = Paths.get(ResourceMonitor.getResourcePath().toAbsolutePath()+ "/" +bid +".osu");
+        if (!success && !path.toFile().exists()) {
+            throw new LazybotRuntimeException("Beatmap file not available for bid: " + bid);
+        }
+        return path;
     }
 
 
@@ -127,7 +134,11 @@ public class AssertDownloadUtil
                     logger.error("Failed to download file after 3 retries");
                     throw new LazybotRuntimeException("Failed to download file after 3 retries: " + e.getMessage());
                 }
-                Thread.sleep(2000);
+                try {
+                    TimeUnit.SECONDS.sleep(2);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
             }
         }
     }

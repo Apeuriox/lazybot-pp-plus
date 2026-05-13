@@ -79,7 +79,12 @@ public class PlayerUpdateMonitor
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
         long end = System.currentTimeMillis();
-        log.info("All players updated！ size: {}", countOfUpdatedPlayerLastTime.sum());
-        log.info("Total time consumed: {}ms, Avg.: {}ms/player", (end - start), (end - start) / countOfUpdatedPlayerLastTime.sum());
+        long count = countOfUpdatedPlayerLastTime.sum();
+        log.info("All players updated！ size: {}", count);
+        if (count > 0) {
+            log.info("Total time consumed: {}ms, Avg.: {}ms/player", (end - start), (end - start) / count);
+        } else {
+            log.info("Total time consumed: {}ms, no players updated", (end - start));
+        }
     }
 }
