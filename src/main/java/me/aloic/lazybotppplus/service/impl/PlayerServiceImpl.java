@@ -70,26 +70,7 @@ public class PlayerServiceImpl implements PlayerService
 //        List<ScoreLazerDTO> scoreLazerDTOS = new ApiRequestStarter(
 //                URLBuildUtil.buildURLOfUserBest(String.valueOf(id), 100, 0, OsuMode.Osu),
 //                TokenMonitor.getToken()).executeRequestForList(HTTPTypeEnum.GET, ScoreLazerDTO.class);
-        List<ScoreLazerDTO> scoreLazerDTOS = apiRequestExecutor.execute(
-                URLBuildUtil.buildURLOfUserBest(String.valueOf(id), 100, 0, OsuMode.Osu),
-                HTTPTypeEnum.GET,
-                TokenMonitor.getToken(),
-                null,
-                new TypeReference<List<ScoreLazerDTO>>() {}
-        );
-        if (scoreLazerDTOS == null || scoreLazerDTOS.isEmpty()) {
-            throw new InvalidScoreException("Player score can not be found");
-        }
-        logger.info("Initial size of player bp: {}", scoreLazerDTOS.size());
-        if (scoreLazerDTOS.size() < 110) {
-            scoreLazerDTOS.addAll(apiRequestExecutor.execute(
-                    URLBuildUtil.buildURLOfUserBest(String.valueOf(id), 200-scoreLazerDTOS.size(), scoreLazerDTOS.size(), OsuMode.Osu),
-                    HTTPTypeEnum.GET,
-                    TokenMonitor.getToken(),
-                    null,
-                    new TypeReference<List<ScoreLazerDTO>>() {}));
-        }
-        logger.info("Final size of player bps: {}", scoreLazerDTOS.size());
+        List<ScoreLazerDTO> scoreLazerDTOS = getPlayerBestPerformance(id);
         int batchSize = (int) Math.ceil(scoreLazerDTOS.size() / (double) INITIALIZE_THREAD_LIMIT);
         List<List<ScoreLazerDTO>> partitions = new ArrayList<>();
         for (int i = 0; i < scoreLazerDTOS.size(); i += batchSize) {
@@ -191,6 +172,117 @@ public class PlayerServiceImpl implements PlayerService
         doUpdatesToDatabase(id, recentScores);
         playerSummaryMapper.updateTimestamp(id, LocalDateTime.now());
         logger.info("[UPDATE] Successfully updated player {}",id);
+    }
+
+    @Transactional
+    @Override
+    public PlayerStats reinitPlayerStats(Long id) {
+        PlayerSummaryPO player = playerSummaryMapper.selectById(id);
+        if (player == null) {
+            logger.info("[REINIT] Player {} not initialized, initializing from scratch", id);
+            playerSummaryMapper.insert(new PlayerSummaryPO(id, LocalDateTime.now()));
+            List<ScorePO> scores = initializePlayerStats(id);
+            return new PlayerStats(id, calculatePerformanceFromScores(scores));
+        }
+
+        List<ScoreLazerDTO> scoreLazerDTOS = getPlayerBestPerformance(id);
+
+        int batchSize = (int) Math.ceil(scoreLazerDTOS.size() / (double) INITIALIZE_THREAD_LIMIT);
+        List<List<ScoreLazerDTO>> partitions = new ArrayList<>();
+        for (int i = 0; i < scoreLazerDTOS.size(); i += batchSize) {
+            partitions.add(scoreLazerDTOS.subList(i, Math.min(i + batchSize, scoreLazerDTOS.size())));
+        }
+
+        List<ScorePO> calculatedScores = Collections.synchronizedList(new ArrayList<>());
+        List<ScoreStatisticsPO> calculatedStats = Collections.synchronizedList(new ArrayList<>());
+        List<ScoreModPO> calculatedMods = Collections.synchronizedList(new ArrayList<>());
+        List<BeatmapPO> calculatedBeatmaps = Collections.synchronizedList(new ArrayList<>());
+
+        List<CompletableFuture<Void>> futures = partitions.stream()
+                .map(partition -> CompletableFuture.runAsync(() -> {
+                    for (ScoreLazerDTO lazerScore : partition) {
+                        try {
+                            PPPlusPerformance performance = PlusPPUtil.calcPPPlusStats(
+                                    AssertDownloadUtil.beatmapPath(lazerScore.getBeatmap_id(), false).toString(),
+                                    lazerScore
+                            );
+                            calculatedScores.add(new ScorePO(lazerScore, performance));
+                            calculatedStats.add(new ScoreStatisticsPO(lazerScore.getStatistics(), lazerScore.getId()));
+                            calculatedBeatmaps.add(new BeatmapPO(lazerScore.getBeatmap(), lazerScore.getBeatmapset()));
+                            if (lazerScore.getMods() != null && !lazerScore.getMods().isEmpty()) {
+                                List<ScoreModPO> mods = lazerScore.getMods().stream()
+                                        .map(mod -> new ScoreModPO(lazerScore.getId(), mod.getAcronym()))
+                                        .toList();
+                                calculatedMods.addAll(mods);
+                            }
+                        } catch (Exception e) {
+                            logger.error("[REINIT] pp+ calculation failed, skipping", e);
+                        }
+                    }
+                }, VirtualThreadExecutorHolder.VIRTUAL_EXECUTOR))
+                .toList();
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        //map od bid to score
+        Map<Long, ScorePO> calculatedByBid = calculatedScores.stream()
+                .collect(Collectors.toMap(
+                        ScorePO::getBeatmapId,
+                        Function.identity()
+                ));
+
+        Set<Long> allBids = calculatedByBid.keySet();
+        Map<Long, ScorePO> existingByBid = scoresMapper
+                .selectBestScoresByPlayerAndBeatmapIds(id, allBids)
+                .stream()
+                .collect(Collectors.toMap(
+                        ScorePO::getBeatmapId,
+                        Function.identity(),
+                        (a, b) -> a.getPp() >= b.getPp() ? a : b
+                ));
+
+
+        List<ScorePO> toInsert = new ArrayList<>();
+        Set<Long> winningScoreIds = new HashSet<>();
+        for (Map.Entry<Long, ScorePO> entry : calculatedByBid.entrySet()) {
+            Long bid = entry.getKey();
+            ScorePO newScore = entry.getValue();
+            ScorePO existing = existingByBid.get(bid);
+            if (existing == null || newScore.getPp() > existing.getPp()) {
+                if (existing != null) {
+                    scoreModMapper.deleteByScoreId(existing.getId());
+                    scoreStatisticsMapper.deleteByScoreId(existing.getId());
+                    scoresMapper.deleteById(existing.getId());
+                    logger.info("[REINIT] Deleted score on bid {}: old pp={}, preparing for new score", bid, existing.getPp());
+                }
+                toInsert.add(newScore);
+                winningScoreIds.add(newScore.getId());
+            }
+        }
+
+
+        if (!toInsert.isEmpty()) {
+            Set<Long> winningBids = toInsert.stream().map(ScorePO::getBeatmapId).collect(Collectors.toSet());
+            List<BeatmapPO> relevantBeatmaps = calculatedBeatmaps.stream()
+                    .filter(b -> winningBids.contains(b.getId()))
+                    .collect(Collectors.toList());
+            List<ScoreStatisticsPO> relevantStats = calculatedStats.stream()
+                    .filter(s -> winningScoreIds.contains(s.getScoreId()))
+                    .collect(Collectors.toList());
+            List<ScoreModPO> relevantMods = calculatedMods.stream()
+                    .filter(m -> winningScoreIds.contains(m.getScoreId()))
+                    .collect(Collectors.toList());
+
+            if (!relevantBeatmaps.isEmpty()) beatmapMapper.insertBatchIgnoreDuplicate(relevantBeatmaps);
+            scoresMapper.insertBatch(toInsert);
+            if (!relevantMods.isEmpty()) scoreModMapper.insertBatch(relevantMods);
+            if (!relevantStats.isEmpty()) scoreStatisticsMapper.insertBatch(relevantStats);
+        }
+
+        // 9.更新玩家时间戳并重新计算总维度数据返回
+        playerSummaryMapper.updateTimestamp(id, LocalDateTime.now());
+        logger.info("[REINIT] Player {} reinit completed, {} scores updated/inserted out of {} calculated",
+                id, toInsert.size(), calculatedByBid.size());
+        return calcPlayerStats(id);
     }
 
 
@@ -446,6 +538,30 @@ public class PlayerServiceImpl implements PlayerService
     {
 
         return null;
+    }
+    private List<ScoreLazerDTO> getPlayerBestPerformance(Long id)
+    {
+        List<ScoreLazerDTO> scoreLazerDTOS = apiRequestExecutor.execute(
+                URLBuildUtil.buildURLOfUserBest(String.valueOf(id), 100, 0, OsuMode.Osu),
+                HTTPTypeEnum.GET,
+                TokenMonitor.getToken(),
+                null,
+                new TypeReference<List<ScoreLazerDTO>>() {}
+        );
+        if (scoreLazerDTOS == null || scoreLazerDTOS.isEmpty()) {
+            throw new InvalidScoreException("Player score can not be found");
+        }
+        logger.info("[GET BP] Initial BP size: {}", scoreLazerDTOS.size());
+        if (scoreLazerDTOS.size() < 110) {
+            scoreLazerDTOS.addAll(apiRequestExecutor.execute(
+                    URLBuildUtil.buildURLOfUserBest(String.valueOf(id), 200 - scoreLazerDTOS.size(), scoreLazerDTOS.size(), OsuMode.Osu),
+                    HTTPTypeEnum.GET,
+                    TokenMonitor.getToken(),
+                    null,
+                    new TypeReference<List<ScoreLazerDTO>>() {}));
+        }
+        logger.info("[GET BP] Final BP size: {}", scoreLazerDTOS.size());
+        return scoreLazerDTOS;
     }
 
 

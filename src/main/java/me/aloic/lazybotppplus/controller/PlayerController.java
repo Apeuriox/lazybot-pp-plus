@@ -68,6 +68,13 @@ public class PlayerController
     }
 
 
+    @PostMapping("/reinit")
+    public WebResult reinitPlayerStats(@RequestParam(value = "id", required = true) Long id)
+    {
+        logger.info("handling /player/reinit");
+        return ResultUtil.success(playerService.reinitPlayerStats(id), "reinit successful");
+    }
+
     @GetMapping("/dimension")
     public WebResult getPlayerDetailedSkillDimension(@RequestParam(value = "id", required = true) Long id,
                                    @RequestParam(value = "dimension", required = true) String dimension,

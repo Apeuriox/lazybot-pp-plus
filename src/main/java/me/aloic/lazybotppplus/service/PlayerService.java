@@ -29,4 +29,7 @@ public interface PlayerService
 
     List<ScorePerformanceDTO> bestScoresInSingleDimension(Long id, PerformanceDimension dimension, Integer limit, Integer offset);
 
+    @Transactional
+    PlayerStats reinitPlayerStats(Long id);
+
 }
