@@ -10,6 +10,7 @@ import me.aloic.lazybotppplus.entity.mapper.*;
 import me.aloic.lazybotppplus.entity.po.*;
 import me.aloic.lazybotppplus.entity.vo.PPPlusPerformance;
 import me.aloic.lazybotppplus.entity.vo.PlayerStats;
+import me.aloic.lazybotppplus.entity.vo.ScoreUpdateVO;
 import me.aloic.lazybotppplus.enums.HTTPTypeEnum;
 import me.aloic.lazybotppplus.enums.OsuMode;
 import me.aloic.lazybotppplus.enums.PerformanceDimension;
@@ -310,27 +311,47 @@ public class PlayerServiceImpl implements PlayerService
         List<ScoreModPO> insertMods = new ArrayList<>();
         List<ScoreStatisticsPO> insertStats = new ArrayList<>();
         List<BeatmapPO> insertBeatmaps = new ArrayList<>();
+        List<ScoreUpdateVO> recalculatedRecentScores = new ArrayList<>();
+
         for (ScoreLazerDTO dto : recentScores) {
+            try {
+                PPPlusPerformance performance = PlusPPUtil.calcPPPlusStats(
+                        AssertDownloadUtil.beatmapPath(dto.getBeatmap_id(), false).toString(),
+                        dto);
+                recalculatedRecentScores.add(new ScoreUpdateVO(new ScorePO(dto, performance), dto));
+            }
+            catch (Exception e) {
+                logger.error("recalculate pp+ failed on {}",dto.getId());
+            }
+        }
+        Map<Integer, ScoreUpdateVO> recentScoresMap = recalculatedRecentScores
+                .stream()
+                .collect(Collectors.toMap(
+                        ScoreUpdateVO::getBeatmapId,
+                        Function.identity(),
+                        (a, b) -> a.getPpplus() >= b.getPpplus() ? a : b
+                ));
+
+
+        for (Map.Entry<Integer, ScoreUpdateVO> entry : recentScoresMap.entrySet()) {
             try{
-                Long beatmapId = Long.valueOf(dto.getBeatmap_id());
-                Long scoreId = dto.getId();
-                PPPlusPerformance performance = PlusPPUtil.calcPPPlusStats(AssertDownloadUtil.beatmapPath(Math.toIntExact(beatmapId), false).toString(), dto);
-                ScorePO newScore = new ScorePO(dto, performance);
+                Long beatmapId = Long.valueOf(entry.getKey());
+                Long scoreId = entry.getValue().getScoreInDb().getId();
                 ScorePO existing = existingScores.get(beatmapId);
-                if (existing == null || newScore.getPp() > existing.getPp()) {
+                if (existing == null || entry.getValue().getScoreInDb().getPp() > existing.getPp()) {
                     if (existing != null) {
                         scoreModMapper.deleteByScoreId(existing.getId());
                         scoreStatisticsMapper.deleteByScoreId(existing.getId());
                         scoresMapper.deleteById(existing.getId());
                     }
-                    insertBeatmaps.add(new BeatmapPO(dto.getBeatmap(),dto.getBeatmapset()));
-                    insertList.add(newScore);
-                    if (dto.getMods() != null) {
-                        insertMods.addAll(dto.getMods().stream()
+                    insertBeatmaps.add(new BeatmapPO(entry.getValue().getOriginalScore().getBeatmap(),entry.getValue().getOriginalScore().getBeatmapset()));
+                    insertList.add(entry.getValue().getScoreInDb());
+                    if (entry.getValue().getOriginalScore().getMods() != null) {
+                        insertMods.addAll(entry.getValue().getOriginalScore().getMods().stream()
                                 .map(mod -> new ScoreModPO(scoreId, mod.getAcronym()))
                                 .toList());
                     }
-                    insertStats.add(new ScoreStatisticsPO(dto.getStatistics(), scoreId));
+                    insertStats.add(new ScoreStatisticsPO(entry.getValue().getOriginalScore().getStatistics(), scoreId));
                     logger.info("[UPDATE] Updated scoresId:{} on {} to {}",scoreId,beatmapId,id);
                 }
                 else {
@@ -341,7 +362,7 @@ public class PlayerServiceImpl implements PlayerService
                 logger.error("[UPDATE] pp plus calculation failed, skipping", e);
             }
         }
-        if (!insertStats.isEmpty()) beatmapMapper.insertBatchIgnoreDuplicate(insertBeatmaps);
+        if (!insertBeatmaps.isEmpty()) beatmapMapper.insertBatchIgnoreDuplicate(insertBeatmaps);
         if (!insertList.isEmpty()) scoresMapper.insertBatch(insertList);
         if (!insertMods.isEmpty()) scoreModMapper.insertBatch(insertMods);
         if (!insertStats.isEmpty()) scoreStatisticsMapper.insertBatch(insertStats);

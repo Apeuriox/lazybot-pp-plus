@@ -62,6 +62,7 @@ public class ApiRequestExecutor
                 {
                     logger.warn("Token expired. Refreshing...");
                     tokenMonitor.refreshClientToken();
+                    token = TokenMonitor.getToken();
                     TimeUnit.SECONDS.sleep(10);
                     continue;
                 }
